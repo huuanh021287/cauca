@@ -139,3 +139,22 @@ test('stop clears autosave and saves a final time', async () => {
   await s.stop();
   assert.ok(fs.existsSync(file));
 });
+
+test('failed save keeps dirty, cleans tmp, and autosave retries', async () => {
+  const dir = tmp();
+  const blocker = path.join(dir, 'sub');
+  const file = path.join(blocker, 'players.json');
+  const logs = [];
+  const s = createPlayerStore(file, { log: (m) => logs.push(m) });
+  await s.load();
+  fs.writeFileSync(blocker, 'x'); // 'sub' là file nên mkdir thất bại
+  s.getOrCreate(user, 1);
+  await assert.rejects(s.saveNow());
+  fs.rmSync(blocker);
+  s.startAutosave(10);
+  const deadline = Date.now() + 2000;
+  while (!fs.existsSync(file) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 10));
+  await s.stop();
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).players.u1.name, 'An');
+  assert.ok(!fs.existsSync(`${file}.tmp`));
+});

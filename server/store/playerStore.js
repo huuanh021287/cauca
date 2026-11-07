@@ -98,9 +98,15 @@ export function createPlayerStore(filePath, { log = console.warn } = {}) {
     dirty = false;
     const json = JSON.stringify({ version: 1, players, records });
     const tmp = `${filePath}.tmp`;
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(tmp, json);
-    await fs.rename(tmp, filePath);
+    try {
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.writeFile(tmp, json);
+      await fs.rename(tmp, filePath);
+    } catch (err) {
+      dirty = true; // giữ cờ để lần autosave sau thử lại
+      await fs.rm(tmp, { force: true }).catch(() => {});
+      throw err;
+    }
   }
 
   function saveNow() {
