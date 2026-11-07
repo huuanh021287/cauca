@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Câu Cá Online – Bảng điều khiển</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+<div id="offline" class="banner" hidden role="alert">Mất kết nối server — đang thử kết nối lại…</div>
+<main>
+  <header class="top">
+    <h1>Câu Cá Online</h1>
+    <a class="open-game" href="/game" target="_blank" rel="noopener">Mở màn hình game</a>
+  </header>
+
+  <section class="panel conn" aria-label="Kết nối TikTok">
+    <form id="connForm">
+      <label for="username">Tài khoản TikTok LIVE</label>
+      <div class="row">
+        <input id="username" name="username" placeholder="@tên_tài_khoản" autocomplete="off" spellcheck="false">
+        <button type="submit" class="primary">Kết nối</button>
+        <button type="button" id="btnDisconnect">Ngắt</button>
+      </div>
+    </form>
+    <p class="state"><span id="lamp" class="lamp offline"></span><span id="stateText">Chưa kết nối</span></p>
+  </section>
+
+  <section class="stats" aria-label="Chỉ số">
+    <div><b id="seated">0</b><span>trên bến</span></div>
+    <div><b id="queued">0</b><span>đang chờ</span></div>
+    <div><b id="epm">0</b><span>sự kiện/phút</span></div>
+  </section>
+
+  <section class="panel" aria-label="Giả lập">
+    <h2>Giả lập sự kiện</h2>
+    <div class="grid" id="sims">
+      <button data-kind="join1">+1 người</button>
+      <button data-kind="join20">+20 người</button>
+      <button data-kind="likes500">Mưa tim</button>
+      <button data-kind="gift" data-coins="1">Quà 1 xu</button>
+      <button data-kind="gift" data-coins="50">Quà 50 xu</button>
+      <button data-kind="gift" data-coins="500">Quà 500 xu</button>
+      <button data-kind="follow">Follow</button>
+      <button data-kind="share">Share</button>
+      <button data-kind="chatCast">Gõ "câu"</button>
+      <button data-kind="chatReel">Gõ "kéo"</button>
+    </div>
+    <button id="btnStorm" class="storm">Bão sự kiện</button>
+  </section>
+
+  <section class="panel" aria-label="Người trên bến">
+    <h2>Người trên bến</h2>
+    <ul id="players" class="players"></ul>
+    <p id="empty" class="empty">Chưa có ai trên bến. Bấm “+1 người” hoặc chờ khán giả vào phòng.</p>
+  </section>
+</main>
+<script type="module" src="/admin/admin.js"></script>
+</body>
+</html>
