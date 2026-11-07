@@ -14,15 +14,33 @@ try {
   throw err;
 }
 
-const app = await startServer(config);
+let app;
+try {
+  app = await startServer(config);
+} catch (err) {
+  if (err?.code === 'EADDRINUSE') {
+    console.error(`Cổng ${config.server.port} đang bận — có thể game đã chạy ở cửa sổ khác. Hãy tắt cửa sổ đó (Ctrl+C) rồi chạy lại.`);
+    process.exit(1);
+  }
+  throw err;
+}
 console.log(`Câu Cá chạy tại http://localhost:${app.port}`);
 
+// Tắt êm: lưu dữ liệu rồi thoát. Lỗi khi tắt vẫn thoát; nhận tín hiệu lần hai thì thoát ngay.
 let closing = false;
 const shutdown = async () => {
-  if (closing) return;
+  if (closing) {
+    console.error('Thoát ngay (chưa kịp lưu xong).');
+    process.exit(1);
+  }
   closing = true;
-  await app.close();
+  console.log('Đang lưu dữ liệu và tắt...');
+  try {
+    await app.close();
+  } catch (err) {
+    console.error(`Lỗi khi tắt: ${err.stack ?? err}`);
+    process.exit(1);
+  }
   process.exit(0);
 };
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, shutdown);

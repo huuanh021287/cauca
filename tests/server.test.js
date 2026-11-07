@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import net from 'node:net';
 import { WebSocket } from 'ws';
 import { loadConfig } from '../server/config/loadConfig.js';
 import { startServer } from '../server/app.js';
@@ -79,3 +80,26 @@ test('status has players and storm; kick removes seated player', () => withServe
   assert.equal(seatedCount(c.msgs.slice(mark).find((m) => m.t === 'snapshot')), 0);
   c.ws.close();
 }));
+
+test('same-origin (LAN host) Origin accepted, foreign Origin still rejected', () => withServer(async (app) => {
+  const host = `cauca.lan:${app.port}`;
+  const ok = await client(app, { origin: `http://${host}`, headers: { host } });
+  ok.ws.close();
+  await assert.rejects(client(app, { origin: 'http://evil.example', headers: { host } }));
+  await assert.rejects(client(app, { origin: `http://evil.example:${app.port}` }));
+  await assert.rejects(client(app, { origin: 'not a url', headers: { host } }));
+}));
+
+test('busy port rejects with EADDRINUSE and leaves nothing running', async () => {
+  const blocker = net.createServer();
+  await new Promise((r) => blocker.listen(0, '127.0.0.1', r));
+  const { port } = blocker.address();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cauca-'));
+  const file = path.join(dir, 'players.json');
+  try {
+    await assert.rejects(startServer(loadConfig(), { port, dataFile: file }), (err) => err.code === 'EADDRINUSE');
+    assert.ok(!fs.existsSync(file), 'không ghi dữ liệu khi không mở được cổng');
+  } finally {
+    await new Promise((r) => blocker.close(r));
+  }
+});

@@ -106,7 +106,6 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
   const log = (msg) => console.log(msg);
   const store = createPlayerStore(dataFile, { log: (m) => console.warn(m) });
   await store.load();
-  store.startAutosave(sv.autosaveMs);
   const rng = createRng(Date.now());
   const game = createGame({ config, players: store, rng });
   const sim = createSimulator({ rng, launchId: Date.now().toString(36), commands: { cast: config.commands.cast[0], reel: config.commands.reel[0] } });
@@ -129,11 +128,23 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
   });
   const wss = new WebSocketServer({
     server, path: '/ws', maxPayload: 64 * 1024,
-    verifyClient: ({ origin }) => {
+    verifyClient: ({ origin, req }) => {
       if (!origin) return true; // OBS / LIVE Studio / client Node không gửi Origin
       const p = server.address()?.port;
-      return origin === `http://localhost:${p}` || origin === `http://127.0.0.1:${p}`;
+      if (origin === `http://localhost:${p}` || origin === `http://127.0.0.1:${p}`) return true;
+      // Cùng nguồn (mở qua server.host trong LAN): Origin trùng Host của chính request.
+      try {
+        return Boolean(req.headers.host) && new URL(origin).host === req.headers.host;
+      } catch {
+        return false;
+      }
     },
+  });
+  // WebSocketServer chuyển tiếp lỗi của http server (vd. EADDRINUSE): bắt lại để không sập tiến trình.
+  let failListen = null;
+  wss.on('error', (err) => {
+    if (failListen) failListen(err);
+    else console.error(`lỗi WebSocket server: ${err.message}`);
   });
   const guard = (name, fn) => () => {
     try { fn(); } catch (err) { console.error(`lỗi ${name}: ${err.stack ?? err}`); }
@@ -222,14 +233,23 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
     });
   });
 
+  // Mở cổng trước; chỉ chạy vòng lặp và tự lưu khi đã mở được (cổng bận thì không để lại gì).
+  try {
+    await new Promise((resolve, reject) => {
+      failListen = reject;
+      server.listen(port ?? sv.port, sv.host ?? '127.0.0.1', resolve);
+    });
+  } catch (err) {
+    await new Promise((r) => wss.close(r));
+    throw err;
+  } finally {
+    failListen = null;
+  }
+
+  store.startAutosave(sv.autosaveMs);
   const tickTimer = setInterval(guard('tick', () => broadcastEvents(game.tick(Date.now()))), sv.tickMs);
   const snapTimer = setInterval(guard('snapshot', () => broadcast({ t: 'snapshot', data: game.snapshot(Date.now()) })), sv.snapshotMs);
   const statusTimer = setInterval(guard('status', sendStatus), 1000);
-
-  await new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(port ?? sv.port, sv.host ?? '127.0.0.1', resolve);
-  });
 
   return {
     port: server.address().port,
