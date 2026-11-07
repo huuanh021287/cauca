@@ -1,0 +1,81 @@
+{
+  "dock": {
+    "_ghiChu": "Bến câu: số ghế, số hàng, thời gian không hoạt động bị đá khỏi ghế (giây) và hàng chờ.",
+    "seats": 12, "rows": 2, "idleKickSeconds": 300, "queueMax": 50, "queueIdleSeconds": 300
+  },
+  "fishing": {
+    "_ghiChu": "Nhịp câu (giây): tự thả cần, thả, chờ cá cắn [min,max], cửa sổ giật cần, kéo, hiện kết quả. Mỗi like giảm thời gian chờ likeReduceSec nhưng không dưới minWaitRatio so với thời gian chờ gốc.",
+    "autoCastDelaySec": 2, "castSec": 1, "waitSec": [25, 40], "biteWindowSec": 4,
+    "reelSec": 1.5, "resultSec": 3, "likeReduceSec": 0.3, "minWaitRatio": 0.5,
+    "reelBonusMultiplier": 1.2
+  },
+  "commands": {
+    "_ghiChu": "Từ khóa chat để thả cần (cast) và kéo cần (reel). Viết thường, không dấu.",
+    "cast": ["cau"], "reel": ["keo"]
+  },
+  "tiers": {
+    "_ghiChu": "Tỉ lệ phần trăm ra từng bậc cá; tổng phải bằng 100.",
+    "trash": 15, "common": 55, "rare": 22, "epic": 7, "legendary": 1
+  },
+  "fish": [
+    { "id": "dep_to_ong",   "name": "Dép tổ ong",              "tier": "trash", "xp": 1, "sprite": "fish.dep_to_ong" },
+    { "id": "non_bao_hiem", "name": "Nón bảo hiểm",            "tier": "trash", "xp": 1, "sprite": "fish.non_bao_hiem" },
+    { "id": "so_no",        "name": "Sổ nợ",                   "tier": "trash", "xp": 1, "sprite": "fish.so_no" },
+    { "id": "thu_tinh",     "name": "Thư tình người yêu cũ",   "tier": "trash", "xp": 1, "sprite": "fish.thu_tinh" },
+    { "id": "lon_nuoc",     "name": "Lon nước ngọt",           "tier": "trash", "xp": 1, "sprite": "fish.lon_nuoc" },
+    { "id": "ca_ro",        "name": "Cá rô",                   "tier": "common", "weightKg": [0.1, 0.5], "sprite": "fish.ca_ro" },
+    { "id": "ca_tre",       "name": "Cá trê",                  "tier": "common", "weightKg": [0.3, 1.5], "sprite": "fish.ca_tre" },
+    { "id": "ca_loc",       "name": "Cá lóc",                  "tier": "common", "weightKg": [0.5, 3],   "sprite": "fish.ca_loc" },
+    { "id": "ca_chep",      "name": "Cá chép",                 "tier": "common", "weightKg": [0.5, 4],   "sprite": "fish.ca_chep" },
+    { "id": "ca_ro_phi",    "name": "Cá rô phi",               "tier": "common", "weightKg": [0.2, 1.2], "sprite": "fish.ca_ro_phi" },
+    { "id": "ca_tra",       "name": "Cá tra khổng lồ",        "tier": "rare", "weightKg": [5, 20],   "sprite": "fish.ca_tra" },
+    { "id": "ca_chinh",     "name": "Cá chình",                "tier": "rare", "weightKg": [1, 6],    "sprite": "fish.ca_chinh" },
+    { "id": "tom_cang",     "name": "Tôm càng xanh",           "tier": "rare", "weightKg": [0.1, 0.4], "sprite": "fish.tom_cang" },
+    { "id": "ca_koi",       "name": "Cá koi",                  "tier": "epic", "weightKg": [2, 8],    "sprite": "fish.ca_koi" },
+    { "id": "ca_ho",        "name": "Cá hô",                   "tier": "epic", "weightKg": [20, 80],  "sprite": "fish.ca_ho" },
+    { "id": "rua_vang",     "name": "Rùa vàng",                "tier": "epic", "weightKg": [3, 15],   "sprite": "fish.rua_vang" },
+    { "id": "ca_rong",      "name": "Cá rồng",                 "tier": "legendary", "weightKg": [10, 30],  "sprite": "fish.ca_rong" },
+    { "id": "ca_chep_hoa_rong", "name": "Cá chép hóa rồng",    "tier": "legendary", "weightKg": [30, 100], "sprite": "fish.ca_chep_hoa_rong" }
+  ],
+  "xp": {
+    "_ghiChu": "XP: mỗi kg cá được perKg điểm, rác được trashXp. Cấp n cần curveBase * n^curveExp XP; cấp tối đa maxLevel.",
+    "perKg": 10, "trashXp": 1, "curveBase": 50, "curveExp": 1.5, "maxLevel": 50
+  },
+  "titles": [
+    { "from": 1,  "to": 4,  "name": "Tập sự",            "rodColor": "#8b5a2b" },
+    { "from": 5,  "to": 9,  "name": "Cần thủ làng",      "rodColor": "#4caf50" },
+    { "from": 10, "to": 19, "name": "Sát thủ ao làng",   "rodColor": "#2196f3" },
+    { "from": 20, "to": 34, "name": "Cao thủ sông nước", "rodColor": "#9c27b0" },
+    { "from": 35, "to": 49, "name": "Đại sư biển cả",    "rodColor": "#ff9800" },
+    { "from": 50, "to": 50, "name": "Thần câu",          "rodColor": "#ffd700" }
+  ],
+  "auraFromLevel": 20,
+  "rewards": {
+    "_ghiChu": "Thưởng follow/share: số mồi (bait) và số lần tối đa mỗi phiên live; baitMultiplier là hệ số nhân mồi cho cá rare/epic.",
+    "follow": { "bait": 5, "perSession": 1 }, "share": { "bait": 3, "perSession": 3 },
+    "baitMultiplier": { "rare": 2, "epic": 2 }
+  },
+  "gifts": [
+    { "_ghiChu": "Quà theo khoảng xu, sắp tăng dần, không chồng nhau; maxCoins null là không giới hạn.",
+      "minCoins": 1,   "maxCoins": 9,    "effect": "fast", "fastSec": 60, "fastMaxSec": 300, "waitMultiplier": 0.5 },
+    { "minCoins": 10,  "maxCoins": 99,   "effect": "bait", "bait": 10, "fireworks": "small" },
+    { "minCoins": 100, "maxCoins": null, "effect": "legendary", "fireworks": "big" }
+  ],
+  "leaderboard": {
+    "_ghiChu": "Bảng xếp hạng: số người hiển thị của phiên và chu kỳ đổi bảng (giây).",
+    "sessionTop": 5, "rotateSec": 10
+  },
+  "ui": {
+    "_ghiChu": "Giao diện dọc 1080x1920; safeTop/safeBottom là vùng để trống cho UI của TikTok (px).",
+    "width": 1080, "height": 1920, "safeTop": 160, "safeBottom": 260, "nameMaxChars": 12,
+    "maxPopups": 2, "popupSec": 3, "feedLines": 3
+  },
+  "server": {
+    "_ghiChu": "Máy chủ: cổng, nhịp tick, chu kỳ gửi gói sự kiện, snapshot, tự lưu (ms) và giới hạn sự kiện hiển thị mỗi lần gửi.",
+    "port": 3000, "tickMs": 250, "batchMs": 200, "snapshotMs": 250, "autosaveMs": 5000,
+    "maxDisplayEventsPerFlush": 30
+  },
+  "assets": {
+    "_ghiChu": "Ánh xạ tên sprite sang file ảnh/âm thanh; để trống thì dùng hình vẽ mặc định."
+  }
+}
