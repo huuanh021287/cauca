@@ -66,6 +66,14 @@ Trang admin có mục **Giả lập sự kiện** để thử game khi chưa lê
 
 Mở `http://localhost:3000/game` trong trình duyệt để xem game phản ứng.
 
+## Hiệu ứng Lottie
+
+Hiệu ứng (gợn nước, bắn tóe, vụn ăn mừng theo bậc cá, tia sáng và mưa vụn khi trúng cá huyền thoại, tim bay, khói khi ngồi bến, dấu sao lên cấp) là file JSON Lottie tự sinh bằng code. Hiệu ứng chỉ là hình ảnh, không ảnh hưởng luật chơi.
+
+- Nguồn: `scripts/lottie-lib.js`. Sinh lại file sau khi sửa: `node scripts/gen-lottie.js` (ghi vào `public/game/lottie/`).
+- Thư viện: `lottie-web` 5.12.2 (MIT), bản đã copy vào `public/game/vendor/lottie_svg.min.js`. Khi nâng cấp, copy lại từ `node_modules/lottie-web/build/player/lottie_svg.min.js`.
+- Tắt chuyển động: người xem bật "giảm chuyển động" trong hệ điều hành thì hiệu ứng Lottie không chạy.
+
 ## Gắn vào OBS
 
 1. Trong OBS, thêm nguồn mới: **Browser** (Browser Source).

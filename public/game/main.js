@@ -11,6 +11,7 @@ import { registerFishSprites } from './sprites/fish.js';
 import { drawSceneBack, drawDockRow, drawSceneFront } from './render/scene.js';
 import { createCharacters } from './render/characters.js';
 import { createActors } from './render/actors.js';
+import { createEffects } from './render/effects.js';
 import { installHud } from './render/hud.js';
 import { waitForFonts, setTextSink } from './text.js';
 import { createTextLayer } from './render/textlayer.js';
@@ -69,6 +70,9 @@ async function start() {
   const characters = createCharacters(config, { skipSeated: true });
   const actors = createActors(document.getElementById('actors'), config);
   const textLayer = createTextLayer(document.getElementById('hudtext'));
+  // Hiệu ứng Lottie chỉ là hình ảnh; không đổi trạng thái game.
+  const effects = createEffects(document.getElementById('fx'), config);
+  hooks.onEvents.push((events) => effects.onEvents(events));
   // Quà Huyền thoại (≥100 xu): cả bến reo hò.
   hooks.onEvents.push((events) => {
     if (Array.isArray(events) && events.some((e) => e?.kind === 'gift' && e.effect === 'legendary')) {
@@ -81,6 +85,7 @@ async function start() {
     if (msg.t === 'snapshot') {
       updateOffset(msg.data.serverNow);
       state.snapshot = msg.data;
+      effects.onSnapshot(msg.data.seats);
     } else if (msg.t === 'events') {
       runHooks(hooks.onEvents, msg.data);
     }
