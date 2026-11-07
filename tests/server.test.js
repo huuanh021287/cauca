@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
+import http from 'node:http';
 import { WebSocket } from 'ws';
 import { loadConfig } from '../server/config/loadConfig.js';
 import { startServer } from '../server/app.js';
@@ -81,13 +82,45 @@ test('status has players and storm; kick removes seated player', () => withServe
   c.ws.close();
 }));
 
-test('same-origin (LAN host) Origin accepted, foreign Origin still rejected', () => withServer(async (app) => {
-  const host = `cauca.lan:${app.port}`;
+// GET thô với Host tự đặt (fetch không cho đổi Host).
+function rawGet(port, pathname, host) {
+  return new Promise((resolve, reject) => {
+    const req = http.get({ host: '127.0.0.1', port, path: pathname, headers: { host } }, (res) => {
+      res.resume();
+      resolve(res.statusCode);
+    });
+    req.on('error', reject);
+  });
+}
+
+test('LAN IP host with matching Origin accepted (WS and HTTP)', () => withServer(async (app) => {
+  const host = `192.168.1.10:${app.port}`;
   const ok = await client(app, { origin: `http://${host}`, headers: { host } });
   ok.ws.close();
+  assert.equal(await rawGet(app.port, '/admin', host), 200);
+  const v6 = `[::1]:${app.port}`;
+  (await client(app, { origin: `http://${v6}`, headers: { host: v6 } })).ws.close();
+}));
+
+test('DNS-rebinding: other DNS hostnames rejected for WS and HTTP', () => withServer(async (app) => {
+  const lan = `cauca.lan:${app.port}`;
+  await assert.rejects(client(app, { origin: `http://${lan}`, headers: { host: lan } }));
+  await assert.rejects(client(app, { headers: { host: lan } })); // không có Origin vẫn xét Host
+  const evil = `evil.example:${app.port}`;
+  for (const p of ['/admin', '/config.json', '/game']) {
+    const code = await rawGet(app.port, p, evil);
+    assert.ok(code === 403 || code === 404, `${p} -> ${code}`);
+  }
+}));
+
+test('foreign Origin rejected; localhost and 127.0.0.1 still accepted', () => withServer(async (app) => {
+  const host = `192.168.1.10:${app.port}`;
   await assert.rejects(client(app, { origin: 'http://evil.example', headers: { host } }));
   await assert.rejects(client(app, { origin: `http://evil.example:${app.port}` }));
   await assert.rejects(client(app, { origin: 'not a url', headers: { host } }));
+  (await client(app, { origin: `http://localhost:${app.port}` })).ws.close();
+  (await client(app, { origin: `http://127.0.0.1:${app.port}`, headers: { host: `127.0.0.1:${app.port}` } })).ws.close();
+  assert.equal(await rawGet(app.port, '/config.json', `localhost:${app.port}`), 200);
 }));
 
 test('busy port rejects with EADDRINUSE and leaves nothing running', async () => {

@@ -173,7 +173,7 @@ Cấp độ, XP và bộ sưu tập cá của khán giả được lưu trong `d
 
 ## Bảo mật
 
-Mặc định server chỉ lắng nghe ở `127.0.0.1`, nghĩa là **chỉ máy của bạn** mở được trang admin và game. Bạn có thể đổi `server.host` trong config (ví dụ để xem từ máy khác), nhưng khi đó **bất kỳ ai trong cùng mạng LAN** cũng điều khiển được game (giả lập quà, đá người chơi...). Chỉ làm vậy khi mạng của bạn tin cậy được.
+Mặc định server chỉ lắng nghe ở `127.0.0.1`, nghĩa là **chỉ máy của bạn** mở được trang admin và game. Bạn có thể đổi `server.host` trong config (ví dụ để xem từ máy khác), nhưng khi đó **bất kỳ ai trong cùng mạng LAN** cũng điều khiển được game (giả lập quà, đá người chơi...). Chỉ làm vậy khi mạng của bạn tin cậy được. Khi mở từ máy khác, hãy dùng **địa chỉ IP** của máy chạy game (ví dụ `http://192.168.x.x:3000/admin`), hoặc đúng tên đã đặt trong `server.host`. Mọi tên miền khác ngoài `localhost` đều bị từ chối có chủ đích (chống tấn công DNS rebinding: trang web lạ không thể mượn tên miền của nó để điều khiển game của bạn).
 
 ## Giấy phép và lưu ý
 

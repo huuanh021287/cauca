@@ -2,6 +2,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { createRng } from './game/rng.js';
@@ -72,6 +73,21 @@ export function trimEvents(events, max) {
   return events.filter((_, i) => keep.has(i));
 }
 
+// Chống DNS rebinding: chỉ phục vụ request có Host là địa chỉ IP, `localhost` hoặc đúng `server.host`.
+// Trang lạ đổi DNS tên miền của nó về 127.0.0.1 sẽ gửi Host là tên miền đó → bị từ chối.
+export function hostAllowed(hostHeader, configuredHost) {
+  if (typeof hostHeader !== 'string' || !hostHeader) return false;
+  let hostname;
+  try {
+    hostname = new URL(`http://${hostHeader}`).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  hostname = hostname.replace(/^\[|\]$/g, '');
+  if (net.isIP(hostname) !== 0 || hostname === 'localhost') return true;
+  return typeof configuredHost === 'string' && hostname === configuredHost.toLowerCase();
+}
+
 function serveStatic(req, res) {
   let pathname;
   try {
@@ -116,6 +132,10 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
   });
 
   const server = http.createServer((req, res) => {
+    if (!hostAllowed(req.headers.host, sv.host)) {
+      res.writeHead(403).end();
+      return;
+    }
     if (req.method === 'GET' && req.url.split('?')[0] === '/config.json') {
       res.writeHead(200, { 'Content-Type': MIME['.json'] }).end(clientConfig);
       return;
@@ -129,10 +149,11 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
   const wss = new WebSocketServer({
     server, path: '/ws', maxPayload: 64 * 1024,
     verifyClient: ({ origin, req }) => {
+      if (!hostAllowed(req.headers.host, sv.host)) return false;
       if (!origin) return true; // OBS / LIVE Studio / client Node không gửi Origin
       const p = server.address()?.port;
       if (origin === `http://localhost:${p}` || origin === `http://127.0.0.1:${p}`) return true;
-      // Cùng nguồn (mở qua server.host trong LAN): Origin trùng Host của chính request.
+      // Cùng nguồn (mở bằng IP trong LAN hoặc đúng server.host): Origin trùng Host đã được cho phép.
       try {
         return Boolean(req.headers.host) && new URL(origin).host === req.headers.host;
       } catch {
