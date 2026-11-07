@@ -10,11 +10,13 @@ import { registerCharacterSprites } from './sprites/character.js';
 import { registerFishSprites } from './sprites/fish.js';
 import { drawSceneBack, drawDockRow, drawSceneFront } from './render/scene.js';
 import { createCharacters } from './render/characters.js';
+import { installHud } from './render/hud.js';
+import { waitForFonts } from './text.js';
 
-// Móc cho Task 11: onEvents(events) khi có DisplayEvent; drawHud(ctx, state, nowServer) mỗi khung hình
-// (vẽ trên #hud sau phần nhân vật).
+// Móc cho lớp HUD (render/hud.js): onEvents(events) khi có DisplayEvent; drawHud(ctx, state, nowServer)
+// mỗi khung hình (vẽ trên #hud sau phần nhân vật).
 export const hooks = { onEvents: [], drawHud: [] };
-export const state = { config: null, snapshot: null, offset: 0 };
+export const state = { config: null, snapshot: null, offset: 0, fontsReady: false };
 
 const SKY_OVERRIDE = new URLSearchParams(location.search).get('sky'); // ?sky=day|dusk|night để xem thử
 
@@ -48,6 +50,9 @@ async function start() {
   registerCharacterSprites();
   registerFishSprites(config.fish);
   await loadOverrides(config.assets);
+  // Chữ #hud chờ font web (tối đa 2s) để không vẽ bằng font dự phòng rồi nhảy; cảnh vẫn chạy ngay.
+  waitForFonts(2000).then(() => { state.fontsReady = true; });
+  installHud(hooks, state);
 
   const pixel = document.getElementById('pixel');
   const hud = document.getElementById('hud');
@@ -89,8 +94,10 @@ async function start() {
       drawSceneFront(px, w, h, t, phase);
 
       hx.clearRect(0, 0, hud.width, hud.height);
-      characters.drawHud(hx, seats, nowServer);
-      runDrawHooks(hooks.drawHud, hx, state, nowServer);
+      if (state.fontsReady) {
+        characters.drawHud(hx, seats, nowServer);
+        runDrawHooks(hooks.drawHud, hx, state, nowServer);
+      }
     } catch (err) {
       if (t - lastErrorAt > 5000) { lastErrorAt = t; console.error('Lỗi vẽ khung hình:', err); }
     }

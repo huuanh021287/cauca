@@ -13,6 +13,8 @@ const ROD_LEN = 12 * K;
 const LINE_COLOR = 'rgba(255,255,255,0.75)';
 const HUD_FONT = '"Be Vietnam Pro", system-ui, sans-serif';
 const NAME_MAX_W = 160;   // px high-res
+// Biểu tượng rồng / mồi nằm bên trái nhân vật nhưng trong CHAR_BOX (ghế sát mép không bị cắt).
+const BADGE_DX = -12;     // tâm biểu tượng so với điểm ngồi (low-res); con giun rộng 8 → [-16, -8]
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const easeOut = (v) => 1 - (1 - v) ** 2;
@@ -148,8 +150,8 @@ export function createCharacters(config) {
         const jump = Math.floor(now / 160) % 2;
         drawSprite(ctx, 'fx.exclaim', pz.bobber.x + 7, pz.bobber.y - 4 - jump, { on: jump === 0, scale: 2 });
       }
-      if (seat.legendary) drawSprite(ctx, 'fx.legendary', pos.x - 20, pos.y - 24, { glint: Math.floor(now / 400) % 2 === 0 });
-      if (seat.bait > 0) drawSprite(ctx, 'fx.bait', pos.x - 20, pos.y - 6);
+      if (seat.legendary) drawSprite(ctx, 'fx.legendary', pos.x + BADGE_DX + 1, pos.y - 24, { glint: Math.floor(now / 400) % 2 === 0 });
+      if (seat.bait > 0) drawSprite(ctx, 'fx.bait', pos.x + BADGE_DX, pos.y - 6);
     }
     // Cá giơ lên vẽ sau cùng để nằm trên cả nhân vật bên cạnh (chỉ trong 3 giây kết quả)
     for (const fish of held) drawFishHeld(ctx, fish, now);
@@ -194,7 +196,12 @@ export function createCharacters(config) {
     hud.fillStyle = safeColor(seat.rodColor);
     hud.fillRect(cx - bw / 2, by, bw, 20);
     outlinedText(hud, lv, cx, by + 16, 17, '#fff6c8');
-    if (seat.bait > 0) outlinedText(hud, `${seat.bait}`, (pos.x - 20) * SCALE, (pos.y + 6) * SCALE, 20, '#ffd0dc');
+    if (seat.bait > 0) {
+      // Số mồi canh trái, bắt đầu ngay sau con giun
+      hud.textAlign = 'left';
+      outlinedText(hud, `${seat.bait}`, (pos.x + BADGE_DX + 5) * SCALE, (pos.y + 6) * SCALE, 20, '#ffd0dc', 15 * SCALE);
+      hud.textAlign = 'center';
+    }
   }
 
   // Avatar, tên, cấp, số mồi (canvas #hud, tọa độ high-res).
