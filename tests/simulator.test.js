@@ -71,3 +71,36 @@ test('follow/share/gift/chat pick only seated sim_ users, never real viewers', (
   const mixed = [...real, { id: 'sim_x_9', name: 'Giả', avatar: null }];
   for (let i = 0; i < 10; i++) assert.equal(s.make('follow', {}, mixed)[0].user.id, 'sim_x_9');
 });
+
+function runStorm(s, opts) {
+  const queue = [];
+  const events = [];
+  s.storm(opts, (e) => events.push(e), (fn) => { queue.push(fn); return queue.length; });
+  let guard = 0;
+  while (queue.length && guard++ < 10000) queue.shift()();
+  return events;
+}
+
+test('storm also sends chat commands from crowd members and a gift about every 5s', () => {
+  const s = createSimulator({ rng: createRng(3), commands: { cast: 'thacan', reel: 'giat' } });
+  const events = runStorm(s, { durationSec: 60, users: 50, likesPerMin: 3000 });
+  const crowd = new Set(events.filter((e) => e.type === 'join').map((e) => e.user.id));
+  const chats = events.filter((e) => e.type === 'chat');
+  const gifts = events.filter((e) => e.type === 'gift');
+  // 120 bước × 2 chat
+  assert.equal(chats.length, 240);
+  assert.ok(chats.every((e) => ['thacan', 'giat'].includes(e.text) && crowd.has(e.user.id)));
+  assert.ok(chats.some((e) => e.text === 'thacan') && chats.some((e) => e.text === 'giat'));
+  assert.equal(gifts.length, 12);
+  assert.ok(gifts.every((e) => [1, 50, 500].includes(e.coins) && crowd.has(e.user.id)));
+});
+
+test('storm gift coins are weighted: mostly 1, sometimes 50, rarely 500', () => {
+  const s = createSimulator({ rng: createRng(11) });
+  const gifts = runStorm(s, { durationSec: 3000, users: 10, likesPerMin: 60 }).filter((e) => e.type === 'gift');
+  assert.equal(gifts.length, 600);
+  const n = (c) => gifts.filter((g) => g.coins === c).length;
+  assert.ok(n(1) > 400, `1 xu: ${n(1)}`);
+  assert.ok(n(50) > 30 && n(50) < 150, `50 xu: ${n(50)}`);
+  assert.ok(n(500) > 0 && n(500) < n(50), `500 xu: ${n(500)}`);
+});
