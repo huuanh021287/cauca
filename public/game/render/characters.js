@@ -5,7 +5,7 @@
 import { seatPosition, colorFromName, hashString, SCALE, SEATS_PER_ROW, CHAR_SCALE, LABEL } from '../layout.js';
 import { drawSprite, hasSprite } from '../sprites/registry.js';
 import { hairFor } from '../sprites/character.js';
-import { rect, curve, withAlpha, safeColor } from '../sprites/pixel.js';
+import { rect, curve, grid, withAlpha, safeColor } from '../sprites/pixel.js';
 import { createAvatarCache } from './avatars.js';
 
 const K = CHAR_SCALE;
@@ -15,6 +15,25 @@ const HUD_FONT = '"Be Vietnam Pro", system-ui, sans-serif';
 const NAME_MAX_W = 160;   // px high-res
 // Biểu tượng rồng / mồi nằm bên trái nhân vật nhưng trong CHAR_BOX (ghế sát mép không bị cắt).
 const BADGE_DX = -12;     // tâm biểu tượng so với điểm ngồi (low-res); con giun rộng 8 → [-16, -8]
+
+// "Cả bến reo hò" khi có quà lớn: mọi người đang ngồi nhún nhảy và vẫy tay (tay trái, tay phải cầm cần).
+export const CHEER_MS = 2000;
+const CHEER_HOP = 3;          // độ nhún tối đa, tính theo pixel thân (×CHAR_SCALE)
+const SKIN = '#f6c89a', OUTLINE = '#3a2418';
+// Tay giơ cao (lưới pixel thân); hàng cuối nối vào vai áo (cột 1, hàng 11 của thân).
+const ARM_UP = ['KK..', 'KSK.', 'KSK.', '.KSK', '.KSK', '.KSK', '.KTK', '.KTK', '..KT'];
+const ARM_WAVE = ['.KK.', '.KSK', '.KSK', '.KSK', '.KSK', '.KSK', '.KTK', '.KTK', '..KT'];
+
+// Dáng reo hò của ghế `index` tại `now`; null khi ngoài 2 giây reo hò.
+// hop: độ nâng người (low-res, bội số CHAR_SCALE); wave: khung vẫy tay 0/1. Lệch pha theo ghế cho sinh động.
+export function cheerPose(startAt, now, index) {
+  if (!Number.isFinite(startAt)) return null;
+  const e = now - startAt;
+  if (e < 0 || e >= CHEER_MS) return null;
+  const fade = e < CHEER_MS * 0.8 ? 1 : (CHEER_MS - e) / (CHEER_MS * 0.2);
+  const hop = Math.round(CHEER_HOP * Math.abs(Math.sin((Math.PI * e) / 250 + index * 0.9)) * fade) * CHAR_SCALE;
+  return { hop, wave: Math.floor((e + index * 90) / 180) % 2 };
+}
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const easeOut = (v) => 1 - (1 - v) ** 2;
@@ -29,6 +48,12 @@ export function createCharacters(config) {
   const ui = config.ui;
   const fishSprite = new Map(config.fish.map((f) => [f.id, f.sprite ?? `fish.${f.id}`]));
   const avatars = createAvatarCache({ size: LABEL.avatarR * 2 * SCALE });
+  let cheerAt = null;
+
+  function drawCheerArm(ctx, pos, shirt, cp) {
+    grid(ctx, cp.wave ? ARM_WAVE : ARM_UP, { K: OUTLINE, S: SKIN, T: safeColor(shirt) },
+      pos.x - 8 * K, pos.y - cp.hop - 11 * K, { scale: K });
+  }
 
   // Tính dáng cần, vị trí phao và hiệu ứng cho một nhân vật.
   function pose(seat, pos, now) {
@@ -132,12 +157,20 @@ export function createCharacters(config) {
       if (!seat) { drawStool(ctx, pos); continue; }
       const h = hashString(seat.name ?? seat.userId);
       const pz = pose(seat, pos, now);
+      const cp = cheerPose(cheerAt, now, i);
+      if (cp) {
+        // Cả người (và tay cầm cần) nhún lên; phao vẫn nằm dưới nước.
+        pz.hand.y -= cp.hop; pz.tip.y -= cp.hop;
+        if (pz.fish) pz.fish.y -= cp.hop;
+      }
       if (seat.aura) drawAura(ctx, pos, seat.rodColor, now);
       const blink = (now + (h % 4000)) % 4200 < 140;
-      drawSprite(ctx, 'char.body', pos.x, pos.y, {
-        shirt: colorFromName(seat.name ?? seat.userId), hair: hairFor(h), hat: (h >>> 3) % 5 < 2,
-        blink, bob: pz.bob, scale: K,
+      const shirt = colorFromName(seat.name ?? seat.userId);
+      drawSprite(ctx, 'char.body', pos.x, pos.y - (cp?.hop ?? 0), {
+        shirt, hair: hairFor(h), hat: (h >>> 3) % 5 < 2,
+        blink: blink && !cp, bob: pz.bob, scale: K,
       });
+      if (cp) drawCheerArm(ctx, pos, shirt, cp);
       drawSprite(ctx, 'char.rod', pos.x, pos.y, { hand: pz.hand, tip: pz.tip, bend: pz.bend, color: seat.rodColor, thick: 2 });
       if (pz.bobber) {
         const b = pz.bobber;
@@ -217,5 +250,8 @@ export function createCharacters(config) {
     }
   }
 
-  return { drawRow, drawHud };
+  // Quà lớn (≥100 xu): cả bến reo hò trong CHEER_MS.
+  function cheer(now) { cheerAt = now; }
+
+  return { drawRow, drawHud, cheer };
 }

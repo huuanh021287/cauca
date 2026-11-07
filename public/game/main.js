@@ -64,6 +64,12 @@ async function start() {
   px.imageSmoothingEnabled = false;
 
   const characters = createCharacters(config);
+  // Quà Huyền thoại (≥100 xu): cả bến reo hò.
+  hooks.onEvents.push((events) => {
+    if (Array.isArray(events) && events.some((e) => e?.kind === 'gift' && e.effect === 'legendary')) {
+      characters.cheer(Date.now() + state.offset);
+    }
+  });
 
   connectWs((msg) => {
     if (msg.t === 'snapshot') {
