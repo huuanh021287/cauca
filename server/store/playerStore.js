@@ -10,9 +10,15 @@ export function localDateKey(now) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+// Người chơi giả lập (nút thử ở admin) có id bắt đầu bằng `sim_`: chỉ sống trong bộ nhớ,
+// không bao giờ ghi ra đĩa và không chiếm kỷ lục ngày đã lưu.
+export const isSimId = (id) => String(id).startsWith('sim_');
+const realOnly = (obj, idOf) => Object.fromEntries(Object.entries(obj).filter(([k, v]) => !isSimId(idOf(k, v))));
+
 export function createPlayerStore(filePath, { log = console.warn } = {}) {
   let players = {};
   let records = {};
+  let simRecords = {}; // kỷ lục ngày của người giả, chỉ trong phiên
   const loadedIds = new Set();
   let dirty = false;
   let timer = null;
@@ -22,6 +28,7 @@ export function createPlayerStore(filePath, { log = console.warn } = {}) {
   async function load() {
     players = {};
     records = {};
+    simRecords = {};
     loadedIds.clear();
     let text;
     try {
@@ -35,8 +42,10 @@ export function createPlayerStore(filePath, { log = console.warn } = {}) {
       if (!data || typeof data !== 'object' || typeof data.players !== 'object' || data.players === null) {
         throw new Error('sai cấu trúc players.json');
       }
-      players = data.players;
-      records = data.records && typeof data.records === 'object' ? data.records : {};
+      players = realOnly(data.players, (k) => k);
+      records = data.records && typeof data.records === 'object'
+        ? realOnly(data.records, (_, v) => v?.userId ?? '')
+        : {};
       for (const id of Object.keys(players)) loadedIds.add(id);
     } catch (err) {
       const dir = path.dirname(filePath);
@@ -80,14 +89,18 @@ export function createPlayerStore(filePath, { log = console.warn } = {}) {
     if (kg > c.bestKg) c.bestKg = kg;
     if (kg > 0) {
       const key = localDateKey(now);
-      const rec = records[key];
-      if (!rec || kg > rec.kg) records[key] = { userId, fishId, fishName, kg };
+      const book = isSimId(userId) ? simRecords : records;
+      const rec = book[key];
+      if (!rec || kg > rec.kg) book[key] = { userId, fishId, fishName, kg };
     }
     dirty = true;
   }
 
   function todayRecord(now) {
-    const rec = records[localDateKey(now)];
+    const key = localDateKey(now);
+    const real = records[key];
+    const sim = simRecords[key];
+    const rec = sim && (!real || sim.kg > real.kg) ? sim : real;
     if (!rec) return null;
     return { userId: rec.userId, name: players[rec.userId]?.name ?? '', fishName: rec.fishName, kg: rec.kg };
   }
@@ -96,7 +109,7 @@ export function createPlayerStore(filePath, { log = console.warn } = {}) {
 
   async function writeOnce() {
     dirty = false;
-    const json = JSON.stringify({ version: 1, players, records });
+    const json = JSON.stringify({ version: 1, players: realOnly(players, (k) => k), records });
     const tmp = `${filePath}.tmp`;
     try {
       await fs.mkdir(path.dirname(filePath), { recursive: true });

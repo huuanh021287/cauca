@@ -158,3 +158,49 @@ test('failed save keeps dirty, cleans tmp, and autosave retries', async () => {
   assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).players.u1.name, 'An');
   assert.ok(!fs.existsSync(`${file}.tmp`));
 });
+
+test('sim_ players stay in memory but are never written to disk', async () => {
+  const file = path.join(tmp(), 'players.json');
+  const s = await makeStore(file);
+  const now = local(7, 10, 0);
+  s.getOrCreate(user, now);
+  s.getOrCreate({ id: 'sim_123_1', name: 'Giả 1', avatar: null }, now);
+  s.recordCatch('sim_123_1', fish(3), now);
+  assert.equal(s.get('sim_123_1').catches, 1);
+  await s.saveNow();
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.deepEqual(Object.keys(saved.players), ['u1']);
+  const s2 = await makeStore(file);
+  assert.equal(s2.get('sim_123_1'), undefined);
+  assert.equal(s2.getOrCreate({ id: 'sim_123_1', name: 'Giả 1', avatar: null }, now).isReturning, false);
+});
+
+test('sim catch never sets the persisted record; real player record unaffected', async () => {
+  const file = path.join(tmp(), 'players.json');
+  const s = await makeStore(file);
+  const now = local(7, 10, 0);
+  s.getOrCreate(user, now);
+  s.getOrCreate({ id: 'sim_1_1', name: 'Giả', avatar: null }, now);
+  s.recordCatch('u1', fish(2), now);
+  s.recordCatch('sim_1_1', fish(50), now);
+  await s.saveNow();
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(saved.records[localDateKey(now)].userId, 'u1');
+  assert.equal(saved.records[localDateKey(now)].kg, 2);
+  const s2 = await makeStore(file);
+  assert.deepEqual(s2.todayRecord(now), { userId: 'u1', name: 'An', fishName: 'Cá lóc', kg: 2 });
+});
+
+test('old file with sim_ players is cleaned on next save', async () => {
+  const file = path.join(tmp(), 'players.json');
+  const rec = { name: 'X', avatar: null, xp: 0, level: 1, totalKg: 0, catches: 0, collection: {}, firstSeen: '', lastSeen: '' };
+  fs.writeFileSync(file, JSON.stringify({ version: 1, players: { sim_1: rec, u1: rec }, records: { '2026-11-07': { userId: 'sim_1', fishId: 'a', fishName: 'A', kg: 9 } } }));
+  const s = await makeStore(file);
+  assert.equal(s.get('sim_1'), undefined);
+  assert.equal(s.todayRecord(local(7, 10, 0)), null);
+  s.markDirty();
+  await s.saveNow();
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.deepEqual(Object.keys(saved.players), ['u1']);
+  assert.deepEqual(saved.records, {});
+});

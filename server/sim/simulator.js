@@ -1,16 +1,21 @@
-// Giả lập người xem để thử game không cần TikTok: tạo StdEvent với người giả `sim_<n>`.
+// Giả lập người xem để thử game không cần TikTok: tạo StdEvent với người giả `sim_<lần chạy>_<n>`.
+// Mã lần chạy khác nhau mỗi lần mở server nên người giả không bao giờ được "chào quay lại".
+// Hành động follow/share/quà/chat chỉ chọn người giả đang ngồi, không bao giờ mạo danh khán giả thật.
 const HO = ['Tuấn Anh', 'Thu Hà', 'Minh Khoa', 'Lan Chi', 'Bảo Ngọc', 'Quốc Huy', 'Hải Yến', 'Đức Thắng', 'Mai Phương', 'Gia Bảo', 'Ngọc Trâm', 'Việt Hùng'];
 const STORM_STEP_MS = 500;
 
-export function createSimulator({ rng, commands = { cast: 'cau', reel: 'keo' } }) {
+export function createSimulator({ rng, commands = { cast: 'cau', reel: 'keo' }, launchId = Date.now().toString(36) }) {
   let counter = 0;
 
   const newUser = () => {
     counter += 1;
     const name = `${HO[Math.floor(rng() * HO.length)]} ${counter}`;
-    return { id: `sim_${counter}`, name, avatar: null };
+    return { id: `sim_${launchId}_${counter}`, name, avatar: null };
   };
-  const pickSeated = (seated) => (seated.length ? seated[Math.floor(rng() * seated.length)] : newUser());
+  const pickSeated = (seated) => {
+    const sims = seated.filter((u) => String(u.id).startsWith('sim_'));
+    return sims.length ? sims[Math.floor(rng() * sims.length)] : newUser();
+  };
 
   function make(kind, opts = {}, seated = []) {
     switch (kind) {

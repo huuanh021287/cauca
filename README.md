@@ -159,7 +159,7 @@ Cấp độ, XP và bộ sưu tập cá của khán giả được lưu trong `d
 
 - **Sao lưu**: tắt server rồi copy file `data/players.json` sang chỗ khác.
 - **Reset toàn bộ**: tắt server, xóa file `data/players.json`, chạy lại.
-- **Cảnh báo**: người chơi giả tạo bằng các nút thử ở trang admin (tên dạng "Đức Thắng 1", id `sim_<số>`) **cũng được lưu**. Hãy tắt server và xóa `data/players.json` **trước buổi live thật đầu tiên**, kẻo bảng xếp hạng lẫn người giả.
+- **Người chơi giả**: người chơi tạo bằng các nút thử ở trang admin (tên dạng "Đức Thắng 1", id bắt đầu bằng `sim_`) **không được lưu** vào `data/players.json` và không chiếm kỷ lục "Cá to nhất hôm nay" đã lưu. Họ chỉ tồn tại tới khi tắt server, nên bạn không cần xóa file dữ liệu trước buổi live thật. (File cũ có lẫn người giả sẽ tự được dọn ở lần lưu kế tiếp.)
 
 ## Xử lý sự cố
 

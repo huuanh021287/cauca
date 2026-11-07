@@ -109,7 +109,7 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
   store.startAutosave(sv.autosaveMs);
   const rng = createRng(Date.now());
   const game = createGame({ config, players: store, rng });
-  const sim = createSimulator({ rng, commands: { cast: config.commands.cast[0], reel: config.commands.reel[0] } });
+  const sim = createSimulator({ rng, launchId: Date.now().toString(36), commands: { cast: config.commands.cast[0], reel: config.commands.reel[0] } });
 
   const clientConfig = JSON.stringify({
     ui: config.ui, assets: config.assets, leaderboard: config.leaderboard,
