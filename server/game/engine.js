@@ -12,7 +12,10 @@ export function createGame({ config, players, rng }) {
   const fastGift = config.gifts.find((g) => g.effect === 'fast');
   const dock = createDock(config);
   const session = { kgByUser: new Map(), followed: new Set(), shares: new Map() };
-  const pendingBait = new Map(); // userId -> mồi được tặng khi đang chờ chỗ
+  // Quà/thưởng nhận khi chưa có ghế, áp dụng lúc vào ghế.
+  const pendingBait = new Map(); // userId -> số mồi
+  const pendingFastMs = new Map(); // userId -> thời gian câu nhanh (ms), tối đa fastMaxSec
+  const pendingLegendary = new Set();
   const welcomed = new Set();
 
   const ev = (kind, user, payload = {}) => ({ kind, userId: user.id, name: user.name, ...payload });
@@ -28,11 +31,12 @@ export function createGame({ config, players, rng }) {
     const seat = dock.seats[index];
     const { user } = seat;
     const { record, isReturning } = players.getOrCreate(user, now);
+    const fastMs = pendingFastMs.get(user.id);
     Object.assign(seat, {
-      waitTotal: 0, bait: pendingBait.get(user.id) ?? 0, legendary: false,
-      fastUntil: 0, reelBonus: false, lastCatch: null,
+      waitTotal: 0, bait: pendingBait.get(user.id) ?? 0, legendary: pendingLegendary.has(user.id),
+      fastUntil: fastMs ? now + fastMs : 0, reelBonus: false, lastCatch: null,
     });
-    pendingBait.delete(user.id);
+    clearPending(user.id);
     setPhase(seat, 'idle', now, sec(f.autoCastDelaySec));
     out.push(ev('seat', user, { seatIndex: index }));
     if (isReturning && !welcomed.has(user.id)) {
@@ -88,7 +92,7 @@ export function createGame({ config, players, rng }) {
         break;
       case 'casting': {
         const [min, max] = f.waitSec;
-        const mult = at < seat.fastUntil ? fastGift.waitMultiplier : 1;
+        const mult = at < seat.fastUntil ? (fastGift?.waitMultiplier ?? 1) : 1;
         seat.waitTotal = sec(min + rng() * (max - min)) * mult;
         setPhase(seat, 'waiting', at, seat.waitTotal);
         break;
@@ -107,6 +111,12 @@ export function createGame({ config, players, rng }) {
         setPhase(seat, 'idle', at, sec(f.autoCastDelaySec));
         break;
     }
+  }
+
+  function clearPending(userId) {
+    pendingBait.delete(userId);
+    pendingFastMs.delete(userId);
+    pendingLegendary.delete(userId);
   }
 
   function giveBait(user, seated, amount) {
@@ -163,14 +173,20 @@ export function createGame({ config, players, rng }) {
         const g = giftFor(event.coins ?? 0);
         if (!g) break;
         if (g.effect === 'bait') giveBait(user, seated, g.bait);
-        else if (seated && g.effect === 'fast') {
-          const { seat, index } = seated;
-          if (seat.phase === 'idle') cast(seat, index, now, out);
-          seat.fastUntil = Math.min(Math.max(now, seat.fastUntil) + sec(g.fastSec), now + sec(g.fastMaxSec));
-        } else if (seated && g.effect === 'legendary') {
-          seated.seat.legendary = true;
+        else if (g.effect === 'fast') {
+          if (seated) {
+            const { seat, index } = seated;
+            if (seat.phase === 'idle') cast(seat, index, now, out);
+            seat.fastUntil = Math.min(Math.max(now, seat.fastUntil) + sec(g.fastSec), now + sec(g.fastMaxSec));
+          } else {
+            const ms = (pendingFastMs.get(user.id) ?? 0) + sec(g.fastSec);
+            pendingFastMs.set(user.id, Math.min(ms, sec(g.fastMaxSec)));
+          }
+        } else if (g.effect === 'legendary') {
+          if (seated) seated.seat.legendary = true;
+          else pendingLegendary.add(user.id);
         }
-        out.push(ev('gift', user, { effect: g.effect, fireworks: g.fireworks }));
+        out.push(ev('gift', user, { effect: g.effect, fireworks: g.fireworks ?? null }));
         break;
       }
     }
@@ -193,7 +209,7 @@ export function createGame({ config, players, rng }) {
     if (idx === -1) return [];
     const { user } = dock.seats[idx];
     dockKick(dock, userId);
-    pendingBait.delete(userId);
+    clearPending(userId);
     return [ev('leave', user, { seatIndex: idx })];
   }
 

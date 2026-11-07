@@ -20,13 +20,13 @@ const oldRecord = (level, xp = 0) => ({
   firstSeen: '2026-11-01T00:00:00.000Z', lastSeen: '2026-11-01T00:00:00.000Z',
 });
 
-async function setup({ rng = createRng(42), preload } = {}) {
+async function setup({ rng = createRng(42), preload, cfg = config } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cauca-engine-'));
   const file = path.join(dir, 'players.json');
   if (preload) fs.writeFileSync(file, JSON.stringify({ version: 1, players: preload, records: {} }));
   const players = createPlayerStore(file, { log() {} });
   await players.load();
-  return { game: createGame({ config, players, rng }), players };
+  return { game: createGame({ config: cfg, players, rng }), players };
 }
 
 const join = (game, n, now) => game.handle({ type: 'join', user: u(n) }, now);
@@ -356,6 +356,49 @@ test('queued user follow: thanks now, bait applied when seated', async () => {
   const t = game.tick(T0 + 3);
   assert.ok(t.some((e) => e.kind === 'seat' && e.userId === 'u13'));
   assert.equal(view(game, T0 + 3).bait, 5);
+});
+
+const oneSeat = { ...config, dock: { ...config.dock, seats: 1 } };
+
+// u1 ngồi ghế duy nhất, u2 xếp hàng và tặng quà, rồi u1 bị kick để u2 vào ghế ở T0+2.
+async function queuedGift(coins, rng) {
+  const ctx = await setup({ cfg: oneSeat, rng });
+  join(ctx.game, 1, T0);
+  assert.deepEqual(kinds(join(ctx.game, 2, T0)), ['queued']);
+  const evs = ctx.game.handle({ type: 'gift', user: u(2), coins }, T0 + 1);
+  assert.deepEqual(kinds(evs), ['gift']);
+  ctx.game.kick('u1', T0 + 1);
+  assert.ok(ctx.game.tick(T0 + 2).some((e) => e.kind === 'seat' && e.userId === 'u2'));
+  return ctx;
+}
+
+test('queued user gifts 500 coins: legendary applied when seated', async () => {
+  const { game } = await queuedGift(500, seqRng([0, 0.995, 0, 0]));
+  assert.equal(view(game, T0 + 2).legendary, true);
+  const c = find(game.tick(T0 + 2 + 33500), 'catch');
+  assert.equal(c.tier, 'legendary');
+  assert.equal(view(game, T0 + 2 + 33500).legendary, false);
+});
+
+test('queued user gifts 5 coins: fast applied when seated, capped', async () => {
+  const { game } = await queuedGift(5);
+  assert.equal(view(game, T0 + 2).fastUntil, T0 + 2 + 60000);
+  assert.equal(view(game, T0 + 2).phase, 'idle');
+
+  const ctx = await setup({ cfg: oneSeat });
+  join(ctx.game, 1, T0);
+  join(ctx.game, 2, T0);
+  for (let i = 0; i < 10; i++) ctx.game.handle({ type: 'gift', user: u(2), coins: 5 }, T0 + 1);
+  ctx.game.kick('u1', T0 + 1);
+  ctx.game.tick(T0 + 2);
+  assert.equal(view(ctx.game, T0 + 2).fastUntil, T0 + 2 + 300000);
+});
+
+test('gift event fireworks is null when gift has none', async () => {
+  const { game } = await setup();
+  join(game, 1, T0);
+  const g = find(game.handle({ type: 'gift', user: u(1), coins: 5 }, T0 + 1), 'gift');
+  assert.equal(g.fireworks, null);
 });
 
 test('session kg accumulates per user', async () => {
