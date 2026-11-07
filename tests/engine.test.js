@@ -440,3 +440,19 @@ test('snapshot shape', async () => {
   assert.ok(s.seats[0].phaseEndsAt > s.seats[0].phaseStartedAt);
   assert.deepEqual(s.leaderboard, { session: [], today: null });
 });
+
+test('fast gift while waiting shortens remaining wait now, floored at minWaitRatio', async () => {
+  const { game } = await setup({ rng: seqRng([0]) });
+  join(game, 1, T0);
+  game.tick(T0 + 2000);
+  game.tick(T0 + 3000);
+  let v = view(game, T0 + 3000);
+  assert.equal(v.phase, 'waiting');
+  assert.equal(v.phaseEndsAt, T0 + 28000); // chờ 25s
+  game.handle({ type: 'gift', user: u(1), coins: 5 }, T0 + 5000);
+  v = view(game, T0 + 5000);
+  assert.equal(v.phase, 'waiting');
+  assert.equal(v.phaseEndsAt, T0 + 5000 + 11500); // còn 23s × 0.5
+  game.handle({ type: 'gift', user: u(1), coins: 5 }, T0 + 6000);
+  assert.equal(view(game, T0 + 6000).phaseEndsAt, T0 + 3000 + 12500); // sàn 50% của 25s
+});

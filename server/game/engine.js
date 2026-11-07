@@ -177,6 +177,11 @@ export function createGame({ config, players, rng }) {
           if (seated) {
             const { seat, index } = seated;
             if (seat.phase === 'idle') cast(seat, index, now, out);
+            else if (seat.phase === 'waiting') {
+              // Đang chờ cá: rút ngắn phần còn lại ngay, không dưới sàn minWaitRatio.
+              const floor = seat.phaseStartedAt + seat.waitTotal * f.minWaitRatio;
+              seat.phaseEndsAt = Math.max(floor, now + (seat.phaseEndsAt - now) * g.waitMultiplier);
+            }
             seat.fastUntil = Math.min(Math.max(now, seat.fastUntil) + sec(g.fastSec), now + sec(g.fastMaxSec));
           } else {
             const ms = (pendingFastMs.get(user.id) ?? 0) + sec(g.fastSec);
