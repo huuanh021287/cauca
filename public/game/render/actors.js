@@ -8,7 +8,30 @@ import { hairFor } from '../sprites/character.js';
 import { poseFor, cheerPose } from './characters.js';
 
 const NS = 'http://www.w3.org/2000/svg';
-const SKIN = '#ffd9b0', INK = '#3a2418', CHEEK = '#ff8fa3', HAT = '#e9c873', HAT_DARK = '#6b4a1e';
+const INK = '#3a2418', CHEEK = '#ff8fa3', HAT = '#e9c873', HAT_DARK = '#6b4a1e';
+const SKIN_TONES = ['#ffe0c2', '#f6c89a', '#e0a878', '#b9825a', '#8d5a3b'];
+const HAIR_STYLES = ['short', 'bob', 'ponytail', 'spiky', 'bun'];
+const HAT_STYLES = ['none', 'straw', 'cap', 'beanie', 'none'];
+const HAT_COLORS = ['#4a7bd9', '#e8567a', '#3fb27f', '#f2a33a'];
+const SIZES = [0.9, 1, 1.1];
+
+// Ngoại hình ổn định theo tên: cùng tên luôn ra cùng dáng, người khác nhau thì khác nhau.
+export function appearanceFor(name) {
+  const h = hashString(String(name ?? ''));
+  return {
+    skin: SKIN_TONES[h % SKIN_TONES.length],
+    hair: HAIR_STYLES[(h >>> 5) % HAIR_STYLES.length],
+    hairColor: hairFor(h >>> 9),
+    hat: HAT_STYLES[(h >>> 3) % HAT_STYLES.length],
+    hatColor: HAT_COLORS[(h >>> 13) % HAT_COLORS.length],
+    size: SIZES[(h >>> 17) % SIZES.length],
+  };
+}
+
+// Co giãn quanh điểm chân (x,y) để người to/nhỏ vẫn ngồi đúng mặt bến.
+function sizeTransform(x, y, s) {
+  return s === 1 ? '' : `translate(${x} ${y}) scale(${s}) translate(${-x} ${-y})`;
+}
 const TIER_COLOR = { trash: '#b7c4cc', common: '#7fc8f8', rare: '#6fe0b8', epic: '#c79bff', legendary: '#ffd23a' };
 
 // Trạng thái hình học của một ghế ở một thời điểm: thuần, không đụng DOM (test được trong Node).
@@ -53,7 +76,7 @@ function el(tag, attrs = {}, parent = null) {
 // Bộ phận cố định của một ghế (dựng một lần).
 function buildSeat(svg, pos, seat) {
   const x = pos.x, y = pos.y;
-  const h = hashString(seat?.name ?? seat?.userId ?? '');
+  const look = appearanceFor(seat?.name ?? seat?.userId ?? '');
   const shirt = colorFromName(seat?.name ?? seat?.userId ?? '');
   const g = el('g', { class: 'seat' }, svg);
 
@@ -62,16 +85,15 @@ function buildSeat(svg, pos, seat) {
 
   // Thân người: nhóm hop (vị trí, JS) → nhóm breathe (nhịp thở, CSS)
   const hop = el('g', {}, g);
-  const body = el('g', { class: 'breathe' }, hop);
+  const sizer = el('g', { transform: sizeTransform(x, y, look.size) }, hop);
+  const body = el('g', { class: 'breathe' }, sizer);
   el('ellipse', { cx: x, cy: y - 1, rx: 9, ry: 2.6, fill: '#8a5a32', opacity: 0.85 }, body);
   el('rect', { x: x - 6.5, y: y - 20, width: 13, height: 14, rx: 5, fill: shirt, stroke: INK, 'stroke-width': 0.5 }, body);
-  el('circle', { cx: x - 7.5, cy: y - 14, r: 2.2, fill: SKIN, stroke: INK, 'stroke-width': 0.4 }, body);
+  el('circle', { cx: x - 7.5, cy: y - 14, r: 2.2, fill: look.skin, stroke: INK, 'stroke-width': 0.4 }, body);
   const head = el('g', {}, body);
-  el('circle', { cx: x, cy: y - 27, r: 8.5, fill: SKIN, stroke: INK, 'stroke-width': 0.6 }, head);
-  el('path', {
-    d: `M${x - 8.5} ${y - 27} A8.5 8.5 0 0 1 ${x + 8.5} ${y - 27} Q${x + 5} ${y - 30.5} ${x} ${y - 30} Q${x - 5} ${y - 30.5} ${x - 8.5} ${y - 27} Z`,
-    fill: hairFor(h), stroke: INK, 'stroke-width': 0.4,
-  }, head);
+  if (look.hair === 'ponytail') el('ellipse', { cx: x + 8, cy: y - 25, rx: 2.8, ry: 5, fill: look.hairColor, stroke: INK, 'stroke-width': 0.4 }, head);
+  el('circle', { cx: x, cy: y - 27, r: 8.5, fill: look.skin, stroke: INK, 'stroke-width': 0.6 }, head);
+  addHair(head, x, y, look);
   const eyes = el('g', { class: 'blink' }, head);
   for (const dx of [-3, 3]) {
     el('circle', { cx: x + dx, cy: y - 26, r: 1.3, fill: INK }, eyes);
@@ -80,14 +102,12 @@ function buildSeat(svg, pos, seat) {
   el('ellipse', { cx: x - 5, cy: y - 23, rx: 1.6, ry: 1, fill: CHEEK, opacity: 0.6 }, head);
   el('ellipse', { cx: x + 5, cy: y - 23, rx: 1.6, ry: 1, fill: CHEEK, opacity: 0.6 }, head);
   el('path', { d: `M${x - 1.2} ${y - 22.5} Q${x} ${y - 21.6} ${x + 1.2} ${y - 22.5}`, fill: 'none', stroke: INK, 'stroke-width': 0.5, 'stroke-linecap': 'round' }, head);
-  if ((h >>> 3) % 5 < 2) {
-    el('path', { d: `M${x - 12.5} ${y - 30} Q${x} ${y - 27} ${x + 12.5} ${y - 30} Q${x} ${y - 40} ${x - 12.5} ${y - 30} Z`, fill: HAT, stroke: HAT_DARK, 'stroke-width': 0.5, 'stroke-linejoin': 'round' }, head);
-  }
-  const armUp = el('circle', { cx: x + 7.5, cy: y - 30, r: 2.2, fill: SKIN, stroke: INK, 'stroke-width': 0.4, opacity: 0 }, g);
+  addHat(head, x, y, look);
+  const armUp = el('circle', { cx: x + 7.5, cy: y - 30, r: 2.2, fill: look.skin, stroke: INK, 'stroke-width': 0.4, opacity: 0 }, sizer);
 
   // Cần, dây, phao, tia nước, cá cắn, thanh canh nhịp, cá thoát
   const rod = el('path', { fill: 'none', 'stroke-linecap': 'round', 'stroke-width': 1.5 }, g);
-  const hand = el('circle', { r: 2.3, fill: SKIN, stroke: INK, 'stroke-width': 0.4 }, g);
+  const hand = el('circle', { r: 2.3, fill: look.skin, stroke: INK, 'stroke-width': 0.4 }, g);
   const line = el('path', { fill: 'none', stroke: 'rgba(255,255,255,0.85)', 'stroke-width': 0.35 }, g);
   const bobber = el('g', {}, g);
   const bobberIn = el('g', { class: 'bob-float' }, bobber);
@@ -125,6 +145,36 @@ function buildSeat(svg, pos, seat) {
     meter, sweet, marker, exclaim, fish, fishIn, fishBody, fishTail, trashBox, miss, bait, baitCount,
     shirt, pos,
   };
+}
+
+// Tóc: kiểu theo look.hair, màu look.hairColor (vẽ sau đầu).
+function addHair(parent, x, y, look) {
+  const o = { fill: look.hairColor, stroke: INK, 'stroke-width': 0.4 };
+  const cap = `M${x - 8.5} ${y - 27} A8.5 8.5 0 0 1 ${x + 8.5} ${y - 27} Q${x + 5} ${y - 30.5} ${x} ${y - 30} Q${x - 5} ${y - 30.5} ${x - 8.5} ${y - 27} Z`;
+  if (look.hair === 'bob') {
+    el('path', { ...o, d: `M${x - 9} ${y - 19} L${x - 9} ${y - 27} A9 9 0 0 1 ${x + 9} ${y - 27} L${x + 9} ${y - 19} L${x + 5.5} ${y - 21} Q${x} ${y - 24} ${x - 5.5} ${y - 21} Z` }, parent);
+    return;
+  }
+  el('path', { ...o, d: cap }, parent);
+  if (look.hair === 'spiky') {
+    for (const dx of [-5, 0, 5]) el('path', { ...o, d: `M${x + dx - 2} ${y - 29.5} L${x + dx} ${y - 34} L${x + dx + 2} ${y - 29.5} Z` }, parent);
+  } else if (look.hair === 'bun') {
+    el('circle', { ...o, cx: x, cy: y - 36.5, r: 3.2 }, parent);
+  }
+}
+
+// Nón: none | straw (nón lá) | cap (nón lưỡi trai) | beanie (mũ len có quả bông).
+function addHat(parent, x, y, look) {
+  if (look.hat === 'straw') {
+    el('path', { d: `M${x - 12.5} ${y - 30} Q${x} ${y - 27} ${x + 12.5} ${y - 30} Q${x} ${y - 40} ${x - 12.5} ${y - 30} Z`, fill: HAT, stroke: HAT_DARK, 'stroke-width': 0.5, 'stroke-linejoin': 'round' }, parent);
+  } else if (look.hat === 'cap') {
+    el('path', { d: `M${x - 8.5} ${y - 28} Q${x} ${y - 37} ${x + 8.5} ${y - 28} Z`, fill: look.hatColor, stroke: INK, 'stroke-width': 0.4 }, parent);
+    el('path', { d: `M${x - 1} ${y - 30} L${x + 11} ${y - 29} Q${x + 9} ${y - 27.5} ${x - 1} ${y - 28.5} Z`, fill: '#2f2f3a' }, parent);
+  } else if (look.hat === 'beanie') {
+    el('path', { d: `M${x - 8.5} ${y - 27} Q${x} ${y - 38} ${x + 8.5} ${y - 27} Z`, fill: look.hatColor, stroke: INK, 'stroke-width': 0.4 }, parent);
+    el('rect', { x: x - 8.8, y: y - 28.6, width: 17.6, height: 2.6, rx: 1.2, fill: '#ffffff', opacity: 0.9, stroke: INK, 'stroke-width': 0.3 }, parent);
+    el('circle', { cx: x, cy: y - 34, r: 2, fill: '#ffffff', stroke: INK, 'stroke-width': 0.3 }, parent);
+  }
 }
 
 function setFish(d, fishState) {

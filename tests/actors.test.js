@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSeatState, rodPath, linePath } from '../public/game/render/actors.js';
+import { buildSeatState, rodPath, linePath, appearanceFor } from '../public/game/render/actors.js';
 import { seatPosition } from '../public/game/layout.js';
 import { loadConfig } from '../server/config/loadConfig.js';
 
@@ -52,4 +52,14 @@ test('cheer: nhấc người lên theo hop, cần và tay cũng nhấc theo', ()
 test('rodPath và linePath trả về chuỗi d hợp lệ', () => {
   assert.match(rodPath({ x: 1, y: 2 }, { x: 10, y: 3 }, 2), /^M1 2 Q[-\d.]+ [-\d.]+ 10 3$/);
   assert.match(linePath({ x: 10, y: 3 }, { x: 20, y: 30 }), /^M10 3 Q[-\d.]+ [-\d.]+ 20 28$/);
+});
+
+test('ngoại hình ổn định theo tên và có đủ đa dạng', () => {
+  assert.deepEqual(appearanceFor('Mai Phương'), appearanceFor('Mai Phương'));
+  const looks = Array.from({ length: 200 }, (_, i) => appearanceFor(`Người ${i}`));
+  const distinct = (k) => new Set(looks.map((l) => l[k])).size;
+  assert.equal(distinct('skin'), 5);
+  assert.equal(distinct('hair'), 5);
+  assert.equal(distinct('hat'), 4);
+  assert.equal(distinct('size'), 3);
 });
