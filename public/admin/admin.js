@@ -62,3 +62,10 @@ function render(s) {
   }));
   $('empty').hidden = s.players.length > 0;
 }
+
+// Đăng xuất: xoá cookie phiên ở máy chủ rồi về trang đăng nhập.
+document.getElementById('btnLogout').closest('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  await fetch('/admin/api/logout', { method: 'POST' }).catch(() => {});
+  location.replace('/admin/login.html');
+});

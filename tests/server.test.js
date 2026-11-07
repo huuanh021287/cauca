@@ -8,16 +8,36 @@ import http from 'node:http';
 import { WebSocket } from 'ws';
 import { loadConfig } from '../server/config/loadConfig.js';
 import { startServer } from '../server/app.js';
+import { hashPassword } from '../server/auth/admin.js';
 
+export const ADMIN_USER = 'Admin';
+export const ADMIN_PASS = 'mat-khau-thu-nghiem-1'; // chỉ dùng trong test; không phải mật khẩu thật
+
+// Mỗi bài test có thư mục riêng với tài khoản admin thử nghiệm (mật khẩu chỉ lưu dạng băm).
 async function withServer(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cauca-'));
+  fs.writeFileSync(path.join(dir, 'admin.json'), JSON.stringify({ username: ADMIN_USER, passwordHash: hashPassword(ADMIN_PASS) }));
   const app = await startServer(loadConfig(), { port: 0, dataFile: path.join(dir, 'players.json') });
   try { await fn(app); } finally { await app.close(); }
 }
 
+// Đăng nhập admin qua HTTP, trả về cookie phiên.
+export async function adminCookie(app) {
+  const r = await fetch(`http://localhost:${app.port}/admin/api/login`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: ADMIN_USER, password: ADMIN_PASS }),
+  });
+  assert.equal(r.status, 200);
+  return r.headers.get('set-cookie').split(';')[0];
+}
+
 // Mở WS, gom tin nhắn; waitFor(pred) đợi tin khớp (tối đa 3s).
-async function client(app, opts) {
-  const ws = new WebSocket(`ws://localhost:${app.port}/ws`, opts);
+// Mặc định kết nối với phiên admin; truyền { admin: false } để kết nối như người xem.
+async function client(app, opts = {}) {
+  const { admin = true, ...rest } = opts;
+  const headers = { ...(rest.headers ?? {}) };
+  if (admin) headers.Cookie = await adminCookie(app);
+  const ws = new WebSocket(`ws://localhost:${app.port}/ws`, { ...rest, headers });
   const msgs = [];
   const waiters = [];
   ws.on('message', (raw) => {
@@ -97,7 +117,7 @@ test('LAN IP host with matching Origin accepted (WS and HTTP)', () => withServer
   const host = `192.168.1.10:${app.port}`;
   const ok = await client(app, { origin: `http://${host}`, headers: { host } });
   ok.ws.close();
-  assert.equal(await rawGet(app.port, '/admin', host), 200);
+  assert.equal(await rawGet(app.port, '/admin', host), 302); // chưa đăng nhập: chuyển tới trang đăng nhập
   const v6 = `[::1]:${app.port}`;
   (await client(app, { origin: `http://${v6}`, headers: { host: v6 } })).ws.close();
 }));
@@ -136,3 +156,40 @@ test('busy port rejects with EADDRINUSE and leaves nothing running', async () =>
     await new Promise((r) => blocker.close(r));
   }
 });
+
+test('trang admin buộc đăng nhập; sai mật khẩu bị từ chối; đúng mật khẩu mở được', () => withServer(async (app) => {
+  const base = `http://localhost:${app.port}`;
+  const r1 = await fetch(`${base}/admin/`, { redirect: 'manual' });
+  assert.equal(r1.status, 302);
+  assert.equal(r1.headers.get('location'), '/admin/login.html');
+  assert.equal((await fetch(`${base}/admin/login.html`)).status, 200);
+  const bad = await fetch(`${base}/admin/api/login`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: ADMIN_USER, password: 'sai' }),
+  });
+  assert.equal(bad.status, 401);
+  const cookie = await adminCookie(app);
+  const ok = await fetch(`${base}/admin/`, { headers: { Cookie: cookie } });
+  assert.equal(ok.status, 200);
+}));
+
+test('lệnh điều khiển bị từ chối khi chưa đăng nhập admin', () => withServer(async (app) => {
+  const c = await client(app, { admin: false });
+  const auth = await c.waitFor((m) => m.t === 'auth');
+  assert.equal(auth.data.admin, false);
+  c.send({ t: 'sim', kind: 'join1' });
+  const err = await c.waitFor((m) => m.t === 'error');
+  assert.match(err.data.message, /đăng nhập admin/);
+  c.send({ t: 'escape' });
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(c.msgs.filter((m) => m.t === 'snapshot').slice(-1)[0].data.seats.filter(Boolean).length, 0);
+  c.ws.close();
+}));
+
+test('đăng nhập sai 5 lần thì bị khoá tạm (429)', () => withServer(async (app) => {
+  const url = `http://localhost:${app.port}/admin/api/login`;
+  const body = JSON.stringify({ username: ADMIN_USER, password: 'sai' });
+  for (let i = 0; i < 5; i++) await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+  const locked = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: ADMIN_USER, password: ADMIN_PASS }) });
+  assert.equal(locked.status, 429);
+  assert.ok(Number(locked.headers.get('retry-after')) > 0);
+}));

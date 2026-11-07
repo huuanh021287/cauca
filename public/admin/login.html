@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:,">
+  <title>Đăng nhập admin · Câu Cá Online</title>
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <main class="login">
+    <section class="panel">
+      <h1>Đăng nhập admin</h1>
+      <form id="loginForm" autocomplete="on">
+        <label for="user">Tên đăng nhập</label>
+        <input id="user" name="username" autocomplete="username" required spellcheck="false">
+        <label for="pass">Mật khẩu</label>
+        <input id="pass" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit" class="primary">Đăng nhập</button>
+      </form>
+      <p id="err" class="err" role="alert" hidden></p>
+    </section>
+  </main>
+  <script src="/admin/login.js"></script>
+</body>
+</html>

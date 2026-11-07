@@ -11,6 +11,8 @@ const DISPLAY = {
   rays: [96, 96], rain: [270, 480], levelup: [32, 32], hearts: [28, 32], poof: [24, 24],
 };
 const MAX_ACTIVE = 36;
+// Ưu tiên: khi đầy, hiệu ứng quan trọng hơn sẽ thay hiệu ứng nhỏ đang chạy (mặc định 1).
+const PRIORITY = { rain: 3, rays: 3, burst_legendary: 3, burst_epic: 2, burst_rare: 2, levelup: 2 };
 const TIER_BURST = { trash: 'poof', common: 'burst_common', rare: 'burst_rare', epic: 'burst_epic', legendary: 'burst_legendary' };
 const defaultFetch = (name) => fetch(`/game/lottie/${name}.json`).then((r) => (r.ok ? r.json() : null));
 const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -21,6 +23,16 @@ export function createEffects(container, config, { lottie = globalThis.lottie, f
   let active = 0;
   const enabled = Boolean(lottie) && !reduceMotion();
   const lastPhase = new Map(); // chỉ số ghế -> { userId, phase }
+  const live = new Set(); // hiệu ứng đang chạy: { prio, finish }
+
+  // Thay hiệu ứng có ưu tiên thấp nhất (nếu thấp hơn p). Trả về true nếu đã giải phóng một chỗ.
+  function evictFor(p) {
+    let victim = null;
+    for (const e of live) if (e.prio < p && (!victim || e.prio < victim.prio)) victim = e;
+    if (!victim) return false;
+    victim.finish();
+    return true;
+  }
   let lastSeats = [];
 
   function data(name) {
@@ -30,7 +42,9 @@ export function createEffects(container, config, { lottie = globalThis.lottie, f
 
   // Đặt một hiệu ứng tại (x,y) đơn vị bến. scale phóng hiệu ứng gốc; hiệu ứng hết thì tự gỡ.
   function play(name, x, y, { scale = 1, flip = false } = {}) {
-    if (!enabled || active >= MAX_ACTIVE || !DISPLAY[name]) return;
+    if (!enabled || !DISPLAY[name]) return;
+    const prio = PRIORITY[name] ?? 1;
+    if (active >= MAX_ACTIVE && !evictFor(prio)) return;
     const [w, h] = DISPLAY[name];
     const dw = w * scale, dh = h * scale;
     const node = document.createElement('div');
@@ -47,10 +61,13 @@ export function createEffects(container, config, { lottie = globalThis.lottie, f
       if (done) return;
       done = true;
       active--;
+      live.delete(entry);
       try { anim?.destroy(); } catch { /* đã gỡ */ }
       node.remove();
     };
     let anim = null;
+    const entry = { prio, finish };
+    live.add(entry);
     data(name).then((animationData) => {
       if (done) return;
       if (!animationData) { finish(); return; }

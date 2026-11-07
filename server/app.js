@@ -11,6 +11,27 @@ import { createPlayerStore } from './store/playerStore.js';
 import { createListener } from './tiktok/listener.js';
 import { createTikTokConnection } from './tiktok/connection.js';
 import { createSimulator } from './sim/simulator.js';
+import { createAdminAuth, loadAdminAccount, tokenFromCookie, sessionCookie, clearCookie } from './auth/admin.js';
+
+// Trang admin chỉ mở được sau khi đăng nhập; trang đăng nhập và file CSS của nó thì công khai.
+const ADMIN_PUBLIC = new Set(['/admin/login.html', '/admin/login.js', '/admin/admin.css']);
+// Lệnh điều khiển qua WebSocket: chỉ phiên admin hợp lệ mới được thực hiện.
+const ADMIN_MESSAGES = new Set(['connect', 'disconnect', 'sim', 'storm', 'kick', 'escape']);
+const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
+
+function readJson(req, limit, cb) {
+  let size = 0;
+  const chunks = [];
+  req.on('data', (c) => {
+    size += c.length;
+    if (size > limit) { req.destroy(); return; }
+    chunks.push(c);
+  });
+  req.on('end', () => {
+    try { cb(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { cb(null); }
+  });
+  req.on('error', () => {});
+}
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -88,6 +109,41 @@ export function hostAllowed(hostHeader, configuredHost) {
   return typeof configuredHost === 'string' && hostname === configuredHost.toLowerCase();
 }
 
+function handleAdminApi(req, res, auth) {
+  const p = req.url.split('?')[0];
+  if (req.method === 'POST' && p === '/admin/api/login') {
+    readJson(req, 1024, (body) => {
+      if (!body || typeof body.username !== 'string' || typeof body.password !== 'string') {
+        res.writeHead(400, JSON_HEADERS).end(JSON.stringify({ ok: false, message: 'Thiếu tên đăng nhập hoặc mật khẩu.' }));
+        return;
+      }
+      const r = auth.login(req.socket.remoteAddress ?? 'unknown', body.username, body.password);
+      if (r.ok) {
+        res.writeHead(200, { ...JSON_HEADERS, 'Set-Cookie': sessionCookie(r.token) }).end('{"ok":true}');
+        return;
+      }
+      if (r.status === 503) {
+        res.writeHead(503, JSON_HEADERS).end(JSON.stringify({ ok: false, message: 'Chưa tạo tài khoản admin. Chạy: node scripts/set-admin.js' }));
+        return;
+      }
+      if (r.status === 429) {
+        const min = Math.ceil(r.retryAfterSec / 60);
+        res.writeHead(429, { ...JSON_HEADERS, 'Retry-After': String(r.retryAfterSec) })
+          .end(JSON.stringify({ ok: false, message: `Đăng nhập sai nhiều lần. Thử lại sau ${min} phút.` }));
+        return;
+      }
+      res.writeHead(401, JSON_HEADERS).end(JSON.stringify({ ok: false, message: 'Sai tên đăng nhập hoặc mật khẩu.' }));
+    });
+    return;
+  }
+  if (req.method === 'POST' && p === '/admin/api/logout') {
+    auth.logout(tokenFromCookie(req.headers.cookie));
+    res.writeHead(200, { ...JSON_HEADERS, 'Set-Cookie': clearCookie() }).end('{"ok":true}');
+    return;
+  }
+  res.writeHead(404).end();
+}
+
 function serveStatic(req, res) {
   let pathname;
   try {
@@ -123,6 +179,8 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
   const store = createPlayerStore(dataFile, { log: (m) => console.warn(m) });
   await store.load();
   const rng = createRng(Date.now());
+  const auth = createAdminAuth(loadAdminAccount(path.join(path.dirname(dataFile), 'admin.json')));
+  if (!auth.configured) console.warn('Chưa có tài khoản admin: chạy `node scripts/set-admin.js` để mở trang admin.');
   const game = createGame({ config, players: store, rng });
   const sim = createSimulator({ rng, launchId: Date.now().toString(36), commands: { cast: config.commands.cast[0], reel: config.commands.reel[0] } });
 
@@ -134,6 +192,16 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
   const server = http.createServer((req, res) => {
     if (!hostAllowed(req.headers.host, sv.host)) {
       res.writeHead(403).end();
+      return;
+    }
+    const urlPath = req.url.split('?')[0];
+    if (urlPath.startsWith('/admin/api/')) {
+      handleAdminApi(req, res, auth);
+      return;
+    }
+    const isAdminPage = urlPath === '/admin' || urlPath === '/admin/' || (urlPath.startsWith('/admin/') && !ADMIN_PUBLIC.has(urlPath));
+    if (isAdminPage && req.method === 'GET' && !auth.valid(tokenFromCookie(req.headers.cookie))) {
+      res.writeHead(302, { Location: '/admin/login.html' }).end();
       return;
     }
     if (req.method === 'GET' && req.url.split('?')[0] === '/config.json') {
@@ -219,7 +287,15 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
   const seatedUsers = () => game.snapshot(Date.now()).seats.filter(Boolean)
     .map((s) => ({ id: s.userId, name: s.name, avatar: s.avatar }));
 
-  function onMessage(msg) {
+  function onMessage(msg, ws) {
+    if (ADMIN_MESSAGES.has(msg?.t)) {
+      // Kiểm tra lại phiên mỗi lần: phiên có thể đã hết hạn hoặc bị đăng xuất.
+      ws.isAdmin = auth.valid(ws.token);
+      if (!ws.isAdmin) {
+        send(ws, { t: 'error', data: { message: 'Cần đăng nhập admin.' } });
+        return;
+      }
+    }
     switch (msg?.t) {
       case 'connect': listener.start(msg.username); break;
       case 'disconnect': listener.stop(); break;
@@ -246,12 +322,15 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
     }
   }
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
+    ws.token = tokenFromCookie(req.headers.cookie);
+    ws.isAdmin = auth.valid(ws.token);
+    send(ws, { t: 'auth', data: { admin: ws.isAdmin } });
     send(ws, { t: 'snapshot', data: game.snapshot(Date.now()) });
     send(ws, { t: 'status', data: statusData() });
     ws.on('error', (err) => { console.error(`lỗi WebSocket: ${err.message}`); ws.terminate(); });
     ws.on('message', (raw) => {
-      try { onMessage(JSON.parse(raw.toString())); } catch (err) { log(`tin nhắn lỗi: ${err.message}`); }
+      try { onMessage(JSON.parse(raw.toString()), ws); } catch (err) { log(`tin nhắn lỗi: ${err.message}`); }
     });
   });
 

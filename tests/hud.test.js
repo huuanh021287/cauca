@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   formatKg, formatClock, shortName, feedText, popupContent, createPopupQueue, createFeed,
-  leaderboardView, hintAt, queueText,
+  leaderboardView, hintAt, HINTS, queueText,
 } from '../public/game/hudLogic.js';
 
 test('formatKg rounds to one decimal', () => {
@@ -43,7 +43,7 @@ test('feedText covers display events with brief copy', () => {
   assert.equal(feedText({ ...u, kind: 'share_thanks', bait: 3 }), 'Cảm ơn @Lan Chi đã chia sẻ! +3 mồi thơm');
   assert.match(feedText({ ...u, kind: 'gift', effect: 'legendary', fireworks: 'big' }), /Huyền thoại/);
   assert.match(feedText({ ...u, kind: 'gift', effect: 'fast', fireworks: null }), /câu nhanh/);
-  for (const kind of ['cast', 'bite', 'catch', 'queued']) assert.equal(feedText({ ...u, kind }), null);
+  for (const kind of ['cast', 'bite', 'catch', 'queued', 'miss']) assert.equal(feedText({ ...u, kind }), null);
 });
 
 test('popupContent: fish shows upper name and kg, trash shows joke', () => {
@@ -118,7 +118,7 @@ test('leaderboard rotates every rotateSec; hints every 5s', () => {
   assert.equal(leaderboardView(10000, 10), 'today');
   assert.equal(leaderboardView(20000, 10), 'session');
   assert.notEqual(hintAt(0).text, hintAt(5000).text);
-  assert.equal(hintAt(0).text, hintAt(15000).text);
+  assert.equal(hintAt(0).text, hintAt(5000 * HINTS.length).text); // vòng lặp đủ số gợi ý
   assert.equal(queueText(0), null);
   assert.equal(queueText(8), 'Đang chờ: 8 người');
 });

@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
+  <link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Câu Cá Online – Bảng điều khiển</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,6 +17,8 @@
     <h1>Câu Cá Online</h1>
     <a class="open-game" href="/game" target="_blank" rel="noopener">Mở màn hình game</a>
   </header>
+
+  <form method="post" action="/admin/api/logout" class="logout"><button type="submit" id="btnLogout">Đăng xuất</button></form>
 
   <section class="panel conn" aria-label="Kết nối TikTok">
     <form id="connForm">

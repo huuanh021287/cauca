@@ -7,7 +7,7 @@
     "_ghiChu": "Nhịp câu (giây): tự thả cần, thả, chờ cá cắn [min,max], cửa sổ giật cần (hết giờ là cá thoát), kéo, hiện kết quả. perfectWindowSec là độ rộng vùng canh nhịp kéo (kéo đúng nhịp được ×reelBonusMultiplier). Mỗi like giảm thời gian chờ likeReduceSec nhưng không dưới minWaitRatio so với thời gian chờ gốc.",
     "autoCastDelaySec": 2, "castSec": 1, "waitSec": [25, 40], "biteWindowSec": 4,
     "reelSec": 1.5, "resultSec": 3, "likeReduceSec": 0.3, "minWaitRatio": 0.5,
-    "reelBonusMultiplier": 1.2, "perfectWindowSec": 0.8
+    "reelBonusMultiplier": 1.2, "perfectWindowSec": 1.2
   },
   "commands": {
     "_ghiChu": "Từ khóa chat để thả cần (cast) và kéo cần (reel). Viết thường, không dấu.",

@@ -92,6 +92,7 @@ async function start() {
   });
 
   let lastErrorAt = -Infinity;
+  const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   function frame() {
     // Hẹn khung sau trước tiên: một lỗi vẽ không được làm đứng hình cả buổi live.
     requestAnimationFrame(frame);
@@ -103,9 +104,10 @@ async function start() {
 
       // Trạng thái vẽ sạch mỗi khung (phòng khi khung trước lỗi giữa chừng)
       for (const c of [px, hx]) { c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; }
-      drawSceneBack(px, w, h, t, phase);
+      const tScene = reduceMotion ? 0 : t; // nền đứng yên khi giảm chuyển động
+      drawSceneBack(px, w, h, tScene, phase);
       for (const row of [0, 1]) {
-        drawDockRow(px, w, rowY(row), t, phase);
+        drawDockRow(px, w, rowY(row), tScene, phase);
         characters.drawRow(px, seats, row, nowServer);
       }
       drawSceneFront(px, w, h, t, phase);

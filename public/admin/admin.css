@@ -47,4 +47,10 @@ button.primary { background: var(--accent); color: var(--accent-ink); border-col
 .players button { padding: 4px 10px; color: var(--bad); }
 .empty { margin: 0; color: var(--muted); }
 .empty[hidden] { display: none; }
+.login { min-height: 100vh; display: grid; place-items: center; max-width: none; }
+.login .panel { width: min(360px, 92vw); display: grid; gap: 10px; }
+.login form { display: grid; gap: 8px; }
+.login h1 { font-size: 1.3rem; }
+.err { margin: 0; color: var(--bad); font-weight: 500; }
+.logout { justify-self: end; }
 @media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
