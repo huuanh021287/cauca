@@ -66,7 +66,7 @@ export function validateConfig(cfg) {
   const fi = group('fishing');
   if (fi) {
     for (const f of ['autoCastDelaySec', 'castSec', 'biteWindowSec', 'reelSec', 'resultSec',
-      'likeReduceSec', 'reelBonusMultiplier']) {
+      'likeReduceSec', 'reelBonusMultiplier', 'perfectWindowSec']) {
       if (!isPos(fi[f])) err(`fishing.${f}`, 'phải là số dương');
     }
     range('fishing.waitSec', fi.waitSec);

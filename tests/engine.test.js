@@ -47,6 +47,9 @@ function toBite(game) {
 // rng cho một mẻ cá tra 5kg (bậc rare, con đầu tiên, cân nhỏ nhất) khi không có mồi.
 const CA_TRA_5KG = [0.8, 0, 0];
 
+// Kéo cần đúng lúc `now` (đã tick tới đó để phase bite bắt đầu).
+const reelAt = (game, n, now) => { game.tick(now); return chat(game, n, 'kéo', now); };
+
 test('join seats player and emits seat', async () => {
   const { game } = await setup();
   const evs = join(game, 1, T0);
@@ -94,7 +97,7 @@ test('idle auto-casts after 2s', async () => {
   assert.equal(view(game, T0 + 2000).phaseEndsAt, T0 + 3000);
 });
 
-test('full cycle: cast → wait → bite → auto reel → result → idle', async () => {
+test('full cycle: cast → wait → bite → miss when not reeled → result → idle', async () => {
   const { game, players } = await setup({ rng: seqRng([0, ...CA_TRA_5KG]) });
   join(game, 1, T0);
   game.tick(T0 + 2000);
@@ -108,41 +111,51 @@ test('full cycle: cast → wait → bite → auto reel → result → idle', asy
   assert.equal(v.phase, 'bite');
   assert.equal(v.phaseEndsAt, T0 + 32000);
 
-  assert.deepEqual(game.tick(T0 + 32000), []);
+  const evs = game.tick(T0 + 32000);
+  assert.deepEqual(kinds(evs), ['miss']);
+  assert.equal(evs[0].seatIndex, 0);
   v = view(game, T0 + 32000);
-  assert.equal(v.phase, 'reeling');
-  assert.equal(v.phaseEndsAt, T0 + 33500);
+  assert.equal(v.phase, 'result');
+  assert.equal(v.lastCatch, null);
+  assert.equal(v.phaseEndsAt, T0 + 35000);
+  assert.equal(players.get('u1').catches ?? 0, 0);
 
-  const evs = game.tick(T0 + 33500);
+  assert.deepEqual(kinds(game.tick(T0 + 35000)), []);
+  v = view(game, T0 + 35000);
+  assert.equal(v.phase, 'idle');
+  assert.equal(v.phaseEndsAt, T0 + 37000);
+});
+
+test('full cycle: cast → wait → bite → reel → result → idle', async () => {
+  const { game, players } = await setup({ rng: seqRng([0, ...CA_TRA_5KG]) });
+  join(game, 1, T0);
+  game.tick(T0 + 2000);
+  game.tick(T0 + 3000);
+  assert.deepEqual(kinds(game.tick(T0 + 28000)), ['bite']);
+  assert.deepEqual(chat(game, 1, 'kéo', T0 + 28500), []);
+  let v = view(game, T0 + 28500);
+  assert.equal(v.phase, 'reeling');
+  assert.equal(v.phaseEndsAt, T0 + 30000);
+
+  const evs = game.tick(T0 + 30000);
   const c = find(evs, 'catch');
   assert.deepEqual(
     { fishId: c.fishId, fishName: c.fishName, tier: c.tier, kg: c.kg },
     { fishId: 'ca_tra', fishName: 'Cá tra khổng lồ', tier: 'rare', kg: 5 },
   );
   assert.equal(c.userId, 'u1');
-  v = view(game, T0 + 33500);
+  v = view(game, T0 + 30000);
   assert.equal(v.phase, 'result');
-  assert.equal(v.phaseEndsAt, T0 + 36500);
-  assert.equal(v.lastCatch.fishId, 'ca_tra');
-  const rec = players.get('u1');
-  assert.equal(rec.catches, 1);
-  assert.equal(rec.level, 2); // 5kg × 10 = 50 xp = đủ lên cấp 2
-  assert.equal(rec.xp, 0);
-
-  assert.deepEqual(game.tick(T0 + 36500), []);
-  v = view(game, T0 + 36500);
-  assert.equal(v.phase, 'idle');
-  assert.equal(v.phaseEndsAt, T0 + 38500);
+  assert.equal(v.phaseEndsAt, T0 + 33000);
+  assert.equal(players.get('u1').catches, 1);
 });
-
 test('large time jump advances several phases in one tick', async () => {
   const { game } = await setup({ rng: seqRng([0, ...CA_TRA_5KG]) });
   join(game, 1, T0);
   const evs = game.tick(T0 + 36500);
-  assert.deepEqual(kinds(evs), ['cast', 'bite', 'catch', 'level_up']);
+  assert.deepEqual(kinds(evs), ['cast', 'bite', 'miss']);
   assert.equal(view(game, T0 + 36500).phase, 'idle');
 });
-
 test('likes shorten wait by 0.3s each, floored at 50%', async () => {
   const { game } = await setup({ rng: seqRng([1 / 3]) });
   join(game, 1, T0);
@@ -197,16 +210,32 @@ test('chat "kéo" outside bite is ignored', async () => {
   assert.equal(view(game, T0 + 10).phase, 'idle');
 });
 
-test('bite window expiry still lands fish', async () => {
+test('bite window expiry: fish escapes, no catch, bait kept', async () => {
   const { game } = await setup({ rng: seqRng([0, ...CA_TRA_5KG]) });
+  join(game, 1, T0);
+  game.handle({ type: 'follow', user: u(1) }, T0 + 1);
   const biteAt = toBite(game);
-  game.tick(biteAt + 4000);
-  assert.equal(view(game, biteAt + 4000).phase, 'reeling');
-  const c = find(game.tick(biteAt + 5500), 'catch');
-  assert.equal(c.fishId, 'ca_tra');
-  assert.equal(c.kg, 5);
+  const evs = game.tick(biteAt + 4000);
+  assert.deepEqual(kinds(evs), ['miss']);
+  assert.equal(view(game, biteAt + 4000).phase, 'result');
+  assert.equal(view(game, biteAt + 4000).bait, 5);
+  assert.equal(game.session.kgByUser.get('u1') ?? 0, 0);
 });
 
+test('reel inside the sweet window grants 1.2× kg; outside it does not', async () => {
+  // Lượt quay chờ = 0 → vùng canh nhịp 28800–29600 ms (cửa sổ cắn 28000–32000).
+  const inside = await setup({ rng: seqRng([0, ...CA_TRA_5KG]) });
+  join(inside.game, 1, T0);
+  inside.game.tick(T0 + 28000);
+  chat(inside.game, 1, 'kéo', T0 + 29000);
+  assert.equal(find(inside.game.tick(T0 + 30500), 'catch').kg, 6);
+
+  const outside = await setup({ rng: seqRng([0, ...CA_TRA_5KG]) });
+  join(outside.game, 1, T0);
+  outside.game.tick(T0 + 28000);
+  chat(outside.game, 1, 'kéo', T0 + 28300);
+  assert.equal(find(outside.game.tick(T0 + 29800), 'catch').kg, 5);
+});
 test('follow grants 5 bait once per session', async () => {
   const { game } = await setup();
   join(game, 1, T0);
@@ -235,7 +264,7 @@ test('bait consumed one per catch and passed to rollCatch', async () => {
   const { game } = await setup({ rng: seqRng([0, 0.9, 0, 0]) });
   join(game, 1, T0);
   game.handle({ type: 'follow', user: u(1) }, T0 + 1);
-  const evs = game.tick(T0 + 33500);
+  const evs = [...reelAt(game, 1, T0 + 28500), ...game.tick(T0 + 33500)];
   const c = find(evs, 'catch');
   assert.equal(c.tier, 'epic');
   assert.equal(c.fishId, 'ca_koi');
@@ -275,17 +304,17 @@ test('gift 50 coins → +10 bait, gift event fireworks small', async () => {
 
 test('gift 500 coins → legendary flag for next catch only, then cleared', async () => {
   // roll 99.5: có cờ thì ra legendary, không cờ thì ra epic.
-  const { game } = await setup({ rng: seqRng([0, 0.995, 0, 0, 0, 0.995, 0, 0]) });
+  const { game } = await setup({ rng: seqRng([0, 0.995, 0, 0, 0, 0.995, 0, 0, 0, 0, 0, 0]) });
   join(game, 1, T0);
   const evs = game.handle({ type: 'gift', user: u(1), coins: 500 }, T0 + 1);
   assert.equal(evs[0].effect, 'legendary');
   assert.equal(evs[0].fireworks, 'big');
   assert.equal(view(game, T0 + 1).legendary, true);
-  const first = find(game.tick(T0 + 33500), 'catch');
+  const first = find(reelAt(game, 1, T0 + 28500).concat(game.tick(T0 + 33500)), 'catch');
   assert.equal(first.tier, 'legendary');
   assert.equal(view(game, T0 + 33500).legendary, false);
   // Vòng 2: idle +3s, tự quăng +2s, casting +1s, chờ 25s, bite 4s, kéo 1.5s.
-  const second = find(game.tick(T0 + 33500 + 36500), 'catch');
+  const second = find(reelAt(game, 1, T0 + 33500 + 28500).concat(game.tick(T0 + 33500 + 36500)), 'catch');
   assert.equal(second.tier, 'epic');
 });
 
@@ -300,7 +329,7 @@ test('level_up emitted with new title', async () => {
   // Cấp 4 cần 400 xp; có sẵn 390 + 50 từ cá tra 5kg → cấp 5.
   const { game, players } = await setup({ rng: seqRng([0, ...CA_TRA_5KG]), preload: { u1: oldRecord(4, 390) } });
   join(game, 1, T0);
-  const evs = game.tick(T0 + 33500);
+  const evs = reelAt(game, 1, T0 + 28500).concat(game.tick(T0 + 33500));
   const lu = find(evs, 'level_up');
   assert.equal(lu.level, 5);
   assert.equal(lu.title, 'Cần thủ làng');
@@ -313,9 +342,9 @@ test('kicked during reeling then chats: no crash, no catch recorded, re-seated f
   const { game, players } = await setup({ rng: seqRng([0, ...CA_TRA_5KG]) });
   join(game, 1, T0);
   game.handle({ type: 'follow', user: u(1) }, T0 + 1);
-  game.tick(T0 + 32000);
-  assert.equal(view(game, T0 + 32000).phase, 'reeling');
-  const kicked = game.kick('u1', T0 + 32100);
+  reelAt(game, 1, T0 + 28500);
+  assert.equal(view(game, T0 + 28600).phase, 'reeling');
+  const kicked = game.kick('u1', T0 + 28600);
   assert.deepEqual(kinds(kicked), ['leave']);
   assert.equal(kicked[0].seatIndex, 0);
   assert.equal(view(game, T0 + 32100), null);
@@ -375,7 +404,7 @@ async function queuedGift(coins, rng) {
 test('queued user gifts 500 coins: legendary applied when seated', async () => {
   const { game } = await queuedGift(500, seqRng([0, 0.995, 0, 0]));
   assert.equal(view(game, T0 + 2).legendary, true);
-  const c = find(game.tick(T0 + 2 + 33500), 'catch');
+  const c = find(reelAt(game, 2, T0 + 2 + 28500).concat(game.tick(T0 + 2 + 33500)), 'catch');
   assert.equal(c.tier, 'legendary');
   assert.equal(view(game, T0 + 2 + 33500).legendary, false);
 });
@@ -411,6 +440,8 @@ test('session kg accumulates per user', async () => {
     for (const e of game.tick(now)) {
       if (e.kind === 'catch') { kg[e.userId] += e.kg; catches++; }
     }
+    game.handle({ type: 'chat', user: u(1), text: 'kéo' }, now);
+    game.handle({ type: 'chat', user: u(2), text: 'kéo' }, now);
     if ((now - T0) % 60000 === 0) { // giữ chỗ
       game.handle({ type: 'like', user: u(1) }, now);
       game.handle({ type: 'like', user: u(2) }, now);
@@ -434,7 +465,7 @@ test('snapshot shape', async () => {
   assert.equal(s.seats[1], null);
   assert.deepEqual(Object.keys(s.seats[0]).sort(), [
     'aura', 'avatar', 'bait', 'fastUntil', 'lastCatch', 'legendary', 'level', 'name',
-    'phase', 'phaseEndsAt', 'phaseStartedAt', 'rodColor', 'title', 'userId',
+    'phase', 'phaseEndsAt', 'phaseStartedAt', 'rodColor', 'sweetEnd', 'sweetStart', 'title', 'userId',
   ]);
   assert.equal(s.seats[0].phaseStartedAt, T0);
   assert.ok(s.seats[0].phaseEndsAt > s.seats[0].phaseStartedAt);
@@ -455,4 +486,21 @@ test('fast gift while waiting shortens remaining wait now, floored at minWaitRat
   assert.equal(v.phaseEndsAt, T0 + 5000 + 11500); // còn 23s × 0.5
   game.handle({ type: 'gift', user: u(1), coins: 5 }, T0 + 6000);
   assert.equal(view(game, T0 + 6000).phaseEndsAt, T0 + 3000 + 12500); // sàn 50% của 25s
+});
+
+test('escapeBites: admin ép hết giờ cắn → cá thoát ngay', async () => {
+  const { game } = await setup({ rng: seqRng([0, ...CA_TRA_5KG]) });
+  const biteAt = toBite(game);
+  const now = biteAt + 1000;
+  const evs = game.escapeBites(now);
+  assert.deepEqual(kinds(evs), ['miss']);
+  assert.equal(view(game, now).phase, 'result');
+  assert.equal(view(game, now).lastCatch, null);
+});
+
+test('escapeBites does nothing to seats not biting', async () => {
+  const { game } = await setup();
+  join(game, 1, T0);
+  assert.deepEqual(game.escapeBites(T0 + 10), []);
+  assert.equal(view(game, T0 + 10).phase, 'idle');
 });

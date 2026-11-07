@@ -61,8 +61,8 @@ Các trạng thái: `idle → casting → waiting → bite → reeling → resul
 - Ở `idle` thì sau 2 giây tự quăng cần.
 - **Thả tim:** mỗi tim trừ 0.3 giây thời gian chờ còn lại. Tổng thời gian chờ không xuống dưới 50% giá trị ban đầu.
 - **Gõ `câu`** (không phân biệt hoa thường, có dấu hay không đều nhận): nếu đang `idle` thì quăng ngay.
-- **Gõ `kéo`** trong lúc `bite`: cân nặng cá ×1.2.
-- Hết cửa sổ `bite` thì vẫn kéo cá lên bình thường, không bị sổng. Lý do: giữ cho người chơi thụ động vẫn vui.
+- **Gõ `kéo`** trong lúc `bite`: cá được kéo lên. Nếu kéo trong vùng canh nhịp (20–80% cửa sổ, rộng `perfectWindowSec`) thì cân nặng ×1.2.
+- Hết cửa sổ `bite` mà chưa kéo thì **cá thoát** (sự kiện `miss`): không có cá, không trừ mồi, không cộng xp.
 
 ### 3.3 Bảng cá
 5 bậc: `trash` 15%, `common` 55%, `rare` 22%, `epic` 7%, `legendary` 1%.

@@ -4,10 +4,10 @@
     "seats": 12, "rows": 2, "idleKickSeconds": 300, "queueMax": 50, "queueIdleSeconds": 300
   },
   "fishing": {
-    "_ghiChu": "Nhịp câu (giây): tự thả cần, thả, chờ cá cắn [min,max], cửa sổ giật cần, kéo, hiện kết quả. Mỗi like giảm thời gian chờ likeReduceSec nhưng không dưới minWaitRatio so với thời gian chờ gốc.",
+    "_ghiChu": "Nhịp câu (giây): tự thả cần, thả, chờ cá cắn [min,max], cửa sổ giật cần (hết giờ là cá thoát), kéo, hiện kết quả. perfectWindowSec là độ rộng vùng canh nhịp kéo (kéo đúng nhịp được ×reelBonusMultiplier). Mỗi like giảm thời gian chờ likeReduceSec nhưng không dưới minWaitRatio so với thời gian chờ gốc.",
     "autoCastDelaySec": 2, "castSec": 1, "waitSec": [25, 40], "biteWindowSec": 4,
     "reelSec": 1.5, "resultSec": 3, "likeReduceSec": 0.3, "minWaitRatio": 0.5,
-    "reelBonusMultiplier": 1.2
+    "reelBonusMultiplier": 1.2, "perfectWindowSec": 0.8
   },
   "commands": {
     "_ghiChu": "Từ khóa chat để thả cần (cast) và kéo cần (reel). Viết thường, không dấu.",
@@ -18,24 +18,32 @@
     "trash": 15, "common": 55, "rare": 22, "epic": 7, "legendary": 1
   },
   "fish": [
-    { "id": "dep_to_ong",   "name": "Dép tổ ong",              "tier": "trash", "xp": 1, "sprite": "fish.dep_to_ong" },
-    { "id": "non_bao_hiem", "name": "Nón bảo hiểm",            "tier": "trash", "xp": 1, "sprite": "fish.non_bao_hiem" },
-    { "id": "so_no",        "name": "Sổ nợ",                   "tier": "trash", "xp": 1, "sprite": "fish.so_no" },
-    { "id": "thu_tinh",     "name": "Thư tình người yêu cũ",   "tier": "trash", "xp": 1, "sprite": "fish.thu_tinh" },
-    { "id": "lon_nuoc",     "name": "Lon nước ngọt",           "tier": "trash", "xp": 1, "sprite": "fish.lon_nuoc" },
-    { "id": "ca_ro",        "name": "Cá rô",                   "tier": "common", "weightKg": [0.1, 0.5], "sprite": "fish.ca_ro" },
-    { "id": "ca_tre",       "name": "Cá trê",                  "tier": "common", "weightKg": [0.3, 1.5], "sprite": "fish.ca_tre" },
-    { "id": "ca_loc",       "name": "Cá lóc",                  "tier": "common", "weightKg": [0.5, 3],   "sprite": "fish.ca_loc" },
-    { "id": "ca_chep",      "name": "Cá chép",                 "tier": "common", "weightKg": [0.5, 4],   "sprite": "fish.ca_chep" },
-    { "id": "ca_ro_phi",    "name": "Cá rô phi",               "tier": "common", "weightKg": [0.2, 1.2], "sprite": "fish.ca_ro_phi" },
-    { "id": "ca_tra",       "name": "Cá tra khổng lồ",        "tier": "rare", "weightKg": [5, 20],   "sprite": "fish.ca_tra" },
-    { "id": "ca_chinh",     "name": "Cá chình",                "tier": "rare", "weightKg": [1, 6],    "sprite": "fish.ca_chinh" },
-    { "id": "tom_cang",     "name": "Tôm càng xanh",           "tier": "rare", "weightKg": [0.1, 0.4], "sprite": "fish.tom_cang" },
-    { "id": "ca_koi",       "name": "Cá koi",                  "tier": "epic", "weightKg": [2, 8],    "sprite": "fish.ca_koi" },
-    { "id": "ca_ho",        "name": "Cá hô",                   "tier": "epic", "weightKg": [20, 80],  "sprite": "fish.ca_ho" },
-    { "id": "rua_vang",     "name": "Rùa vàng",                "tier": "epic", "weightKg": [3, 15],   "sprite": "fish.rua_vang" },
-    { "id": "ca_rong",      "name": "Cá rồng",                 "tier": "legendary", "weightKg": [10, 30],  "sprite": "fish.ca_rong" },
-    { "id": "ca_chep_hoa_rong", "name": "Cá chép hóa rồng",    "tier": "legendary", "weightKg": [30, 100], "sprite": "fish.ca_chep_hoa_rong" }
+    { "id": "dep_to_ong", "name": "Dép tổ ong", "tier": "trash", "xp": 1, "sprite": "fish.dep_to_ong" },
+    { "id": "non_bao_hiem", "name": "Nón bảo hiểm", "tier": "trash", "xp": 1, "sprite": "fish.non_bao_hiem" },
+    { "id": "so_no", "name": "Sổ nợ", "tier": "trash", "xp": 1, "sprite": "fish.so_no" },
+    { "id": "thu_tinh", "name": "Thư tình người yêu cũ", "tier": "trash", "xp": 1, "sprite": "fish.thu_tinh" },
+    { "id": "lon_nuoc", "name": "Lon nước ngọt", "tier": "trash", "xp": 1, "sprite": "fish.lon_nuoc" },
+    { "id": "tui_nilon", "name": "Túi ni lông", "tier": "trash", "xp": 1, "sprite": "fish.tui_nilon" },
+    { "id": "vo_hop", "name": "Vỏ hộp sữa", "tier": "trash", "xp": 1, "sprite": "fish.vo_hop" },
+    { "id": "ca_ro", "name": "Cá rô", "tier": "common", "weightKg": [0.1, 0.5], "sprite": "fish.ca_ro" },
+    { "id": "ca_tre", "name": "Cá trê", "tier": "common", "weightKg": [0.3, 1.5], "sprite": "fish.ca_tre" },
+    { "id": "ca_loc", "name": "Cá lóc", "tier": "common", "weightKg": [0.5, 3], "sprite": "fish.ca_loc" },
+    { "id": "ca_chep", "name": "Cá chép", "tier": "common", "weightKg": [0.5, 4], "sprite": "fish.ca_chep" },
+    { "id": "ca_ro_phi", "name": "Cá rô phi", "tier": "common", "weightKg": [0.2, 1.2], "sprite": "fish.ca_ro_phi" },
+    { "id": "tom_cang", "name": "Tôm càng xanh", "tier": "common", "weightKg": [0.1, 0.4], "sprite": "fish.tom_cang" },
+    { "id": "ca_diec", "name": "Cá diếc", "tier": "common", "weightKg": [0.1, 0.6], "sprite": "fish.ca_diec" },
+    { "id": "ca_me", "name": "Cá mè", "tier": "common", "weightKg": [1, 4], "sprite": "fish.ca_me" },
+    { "id": "ca_tra", "name": "Cá tra khổng lồ", "tier": "rare", "weightKg": [5, 20], "sprite": "fish.ca_tra" },
+    { "id": "ca_chinh", "name": "Cá chình", "tier": "rare", "weightKg": [4, 12], "sprite": "fish.ca_chinh" },
+    { "id": "ca_luong", "name": "Cá lăng", "tier": "rare", "weightKg": [4, 15], "sprite": "fish.ca_luong" },
+    { "id": "ca_koi", "name": "Cá koi", "tier": "epic", "weightKg": [8, 20], "sprite": "fish.ca_koi" },
+    { "id": "ca_ho", "name": "Cá hô", "tier": "epic", "weightKg": [25, 60], "sprite": "fish.ca_ho" },
+    { "id": "rua_vang", "name": "Rùa vàng", "tier": "epic", "weightKg": [15, 30], "sprite": "fish.rua_vang" },
+    { "id": "ca_mu", "name": "Cá mú", "tier": "epic", "weightKg": [15, 40], "sprite": "fish.ca_mu" },
+    { "id": "ca_ngu", "name": "Cá ngừ", "tier": "epic", "weightKg": [25, 50], "sprite": "fish.ca_ngu" },
+    { "id": "ca_rong", "name": "Cá rồng", "tier": "legendary", "weightKg": [50, 100], "sprite": "fish.ca_rong" },
+    { "id": "ca_chep_hoa_rong", "name": "Cá chép hóa rồng", "tier": "legendary", "weightKg": [80, 150], "sprite": "fish.ca_chep_hoa_rong" },
+    { "id": "ca_long_vuong", "name": "Cá long vương", "tier": "legendary", "weightKg": [100, 180], "sprite": "fish.ca_long_vuong" }
   ],
   "xp": {
     "_ghiChu": "XP: mỗi kg cá được perKg điểm, rác được trashXp. Cấp n cần curveBase * n^curveExp XP; cấp tối đa maxLevel.",

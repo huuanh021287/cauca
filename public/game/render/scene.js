@@ -21,6 +21,28 @@ const noise = (i) => {
 
 const cache = new Map();
 
+// Mặt hồ theo phối cảnh: mép dải dồn sát chân trời rồi giãn dần về phía người xem (mốc (k/n)²),
+// vệt gợn dài và thưa hơn ở dải gần. Chỉ chạy khi bake nên không tốn thêm mỗi khung hình.
+function drawWaterPerspective(ctx, w, h, p) {
+  const span = h - SHORE_Y;
+  const n = p.water.length;
+  let top = SHORE_Y;
+  p.water.forEach((c, i) => {
+    const bottom = i === n - 1 ? h : SHORE_Y + Math.round(span * ((i + 1) / n) ** 2);
+    rect(ctx, 0, top, w, bottom - top, c);
+    const step = 3 + i * 2;
+    for (let y = top + 2; y < bottom - 1; y += step) {
+      let x = Math.floor(noise(y * 0.37) * 6);
+      while (x < w) {
+        const len = 3 + i * 3 + Math.floor(noise(x + y * 1.7) * 4);
+        if (noise(x * 0.9 + y * 3.1) > 0.45) rect(ctx, x, y, len, 1, p.ripple);
+        x += len + 4 + i * 5 + Math.floor(noise(x * 2.3 + y) * 8);
+      }
+    }
+    top = bottom;
+  });
+}
+
 function bakeBackground(w, h, phase) {
   const p = PALETTES[phase];
   return bake(w, h, (ctx) => {
@@ -37,14 +59,7 @@ function bakeBackground(w, h, phase) {
     drawSprite(ctx, 'scene.mountain', 0, SHORE_Y - 74, { w, h: 52, phase });
     drawHills(ctx, SHORE_Y, w, { phase });
     drawSprite(ctx, 'scene.hut', 176, SHORE_Y - 12, { phase });
-    // Mặt hồ
-    const depth = h - SHORE_Y;
-    const bands = [0.08, 0.3, 0.62, 1].map((f) => Math.round(SHORE_Y + depth * f));
-    let top = SHORE_Y;
-    p.water.forEach((c, i) => { rect(ctx, 0, top, w, bands[i] - top, c); top = bands[i]; });
-    for (let i = 0; i < 3; i++) {
-      for (let x = 0; x < w; x += 2) dot(ctx, x + (bands[i] % 2), bands[i], p.water[i]);
-    }
+    drawWaterPerspective(ctx, w, h, p);
     rect(ctx, 0, SHORE_Y, w, 1, p.ripple);
     // Cây ven bờ (vẽ sau nước để gốc chạm mép hồ)
     drawSprite(ctx, 'scene.tree', 232, SHORE_Y + 2, { kind: 'bamboo', phase });
