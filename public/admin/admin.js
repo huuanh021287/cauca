@@ -27,6 +27,7 @@ $('sims').addEventListener('click', (e) => {
   ws.send(msg);
 });
 $('btnStorm').addEventListener('click', () => ws.send({ t: 'storm' }));
+$('btnEscape').addEventListener('click', () => ws.send({ t: 'escape' }));
 
 $('players').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-uid]');

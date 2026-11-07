@@ -71,6 +71,13 @@ function makeFish(o) {
 }
 
 const FISH_DEFS = {
+  ca_diec: { len: 12, hgt: 6, body: '#7d8f8a', belly: '#e6ece6', fin: '#c24a3a', tailType: 'fork', eyeRing: '#e0463a' },
+  ca_me: { len: 16, hgt: 7, body: '#8aa3b8', back: '#55707f', belly: '#eef4f7', fin: '#7d9b6a', tailType: 'fork', scales: '#a9c3d4' },
+  ca_luong: { len: 21, hgt: 7, body: '#6e7f4a', back: '#3f4d2a', belly: '#d9d3a0', fin: '#5a6b3a', tailType: 'fork', tailH: 6, spots: 4, whiskers: 2 },
+  ca_mu: { len: 20, hgt: 9, body: '#9e8a6a', back: '#5e4e3a', belly: '#e8dcc0', fin: '#7a6548', tailType: 'round', tailH: 6, stripes: 3, dorsal: [0.2, 0.9] },
+  ca_ngu: { len: 22, hgt: 8, body: '#3d5f8c', back: '#1f3a5c', belly: '#e9eef5', fin: '#2e4a6e', tailType: 'fork', tailH: 8, outline: '#14233a' },
+  ca_long_vuong: { len: 24, hgt: 9, body: '#3b2a6e', back: '#22174a', belly: '#c9b6ff', fin: '#ffd23a', tailType: 'fork', tailH: 8, scales: '#6a52b0',
+    outline: '#120a2e', spiny: true, dorsal: [0.2, 0.95], whiskers: 2, whiskerColor: '#ffd23a' },
   ca_ro: { len: 13, hgt: 7, body: '#6f8f3c', belly: '#d2c77c', fin: '#8b6b3a', tailType: 'round', spiny: true, stripes: 3 },
   ca_tre: { len: 17, hgt: 6, body: '#4b4f5c', belly: '#b3aca2', fin: '#3a3d47', tailType: 'round', dorsal: [0.3, 0.9], whiskers: 3, whiskerColor: '#2a2c33' },
   ca_loc: { len: 19, hgt: 6, body: '#5d5b3a', belly: '#dcd6b6', fin: '#47452b', tailType: 'round', dorsal: [0.15, 0.95], spots: 5 },
@@ -95,6 +102,32 @@ const FISH_DEFS = {
 
 // ---- Lưới vẽ tay ------------------------------------------------------------
 const GRIDS = {
+  tui_nilon: {
+    pal: { k: '#2a2a2a', w: '#e8f0f0', s: '#b8c8cc', r: '#e0463a' },
+    rows: [
+      '..kkkkk..',
+      '.kkwwwkk.',
+      'kwwwwwwwk',
+      'kwswwwswk',
+      'kwwwrwwwk',
+      'kwswwwswk',
+      'kwwwwwwwk',
+      '.kkkkkkk.',
+    ],
+  },
+  vo_hop: {
+    pal: { k: '#2a2a2a', w: '#ffffff', b: '#2f6fc2', r: '#e0463a', s: '#c9d3dc' },
+    rows: [
+      'kkkkkk',
+      'kbbbbk',
+      'krrrrk',
+      'kwwwwk',
+      'kwswwk',
+      'kwwwwk',
+      'kwwwwk',
+      'kkkkkk',
+    ],
+  },
   dep_to_ong: {
     pal: { k: '#2b4a6e', b: '#7fb6e6', h: '#3f74a8', s: '#f2f6fb' },
     rows: [

@@ -254,5 +254,11 @@ export function createGame({ config, players, rng }) {
     };
   }
 
-  return { handle, tick, kick, snapshot, session, dock };
+  // Admin: ép hết giờ cắn của mọi ghế đang cắn, nên cá thoát ngay lúc này.
+  function escapeBites(now) {
+    dock.seats.forEach((seat) => { if (seat && seat.phase === 'bite') seat.phaseEndsAt = now; });
+    return tick(now);
+  }
+
+  return { handle, tick, kick, escapeBites, snapshot, session, dock };
 }

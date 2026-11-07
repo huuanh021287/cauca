@@ -487,3 +487,20 @@ test('fast gift while waiting shortens remaining wait now, floored at minWaitRat
   game.handle({ type: 'gift', user: u(1), coins: 5 }, T0 + 6000);
   assert.equal(view(game, T0 + 6000).phaseEndsAt, T0 + 3000 + 12500); // sàn 50% của 25s
 });
+
+test('escapeBites: admin ép hết giờ cắn → cá thoát ngay', async () => {
+  const { game } = await setup({ rng: seqRng([0, ...CA_TRA_5KG]) });
+  const biteAt = toBite(game);
+  const now = biteAt + 1000;
+  const evs = game.escapeBites(now);
+  assert.deepEqual(kinds(evs), ['miss']);
+  assert.equal(view(game, now).phase, 'result');
+  assert.equal(view(game, now).lastCatch, null);
+});
+
+test('escapeBites does nothing to seats not biting', async () => {
+  const { game } = await setup();
+  join(game, 1, T0);
+  assert.deepEqual(game.escapeBites(T0 + 10), []);
+  assert.equal(view(game, T0 + 10).phase, 'idle');
+});

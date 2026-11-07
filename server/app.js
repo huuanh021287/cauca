@@ -241,6 +241,7 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
         sendStatus();
         break;
       case 'kick': broadcastEvents(game.kick(String(msg.userId), Date.now())); break;
+      case 'escape': broadcastEvents(game.escapeBites(Date.now())); break;
       default: break;
     }
   }

@@ -20,8 +20,9 @@ test('tiers must sum to 100', () => {
 
 test('weightKg min > max rejected', () => {
   const c = base();
-  c.fish[5].weightKg = [3, 1];
-  assert.ok(has(validateConfig(c), 'fish[5].weightKg'));
+  const i = c.fish.findIndex((f) => f.weightKg);
+  c.fish[i].weightKg = [3, 1];
+  assert.ok(has(validateConfig(c), `fish[${i}].weightKg`));
 });
 
 test('duplicate fish id rejected', () => {

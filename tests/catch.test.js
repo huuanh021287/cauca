@@ -70,3 +70,23 @@ test('xpForCatch', () => {
   assert.equal(xpForCatch(config, { tier: 'common', kg: 2.3 }), 23);
   assert.equal(xpForCatch(config, { tier: 'trash', kg: 0 }), 1);
 });
+
+test('cân nặng trung bình tăng dần theo bậc; mỗi khoảng hợp lệ', () => {
+  const byTier = {};
+  for (const f of config.fish.filter((x) => x.weightKg)) {
+    const [a, b] = f.weightKg;
+    assert.ok(a > 0 && b > a, f.id);
+    (byTier[f.tier] ??= []).push((a + b) / 2);
+  }
+  const avg = (t) => byTier[t].reduce((x, y) => x + y, 0) / byTier[t].length;
+  const order = ['common', 'rare', 'epic', 'legendary'];
+  for (let i = 1; i < order.length; i++) {
+    assert.ok(avg(order[i - 1]) < avg(order[i]), `${order[i - 1]} < ${order[i]}`);
+  }
+});
+
+test('mỗi bậc có ít nhất một loài để bốc', () => {
+  for (const t of ['trash', 'common', 'rare', 'epic', 'legendary']) {
+    assert.ok(config.fish.some((f) => f.tier === t), t);
+  }
+});

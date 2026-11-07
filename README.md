@@ -61,6 +61,7 @@ Trang admin có mục **Giả lập sự kiện** để thử game khi chưa lê
 - **Quà 1 xu**, **Quà 50 xu**, **Quà 500 xu**: tặng quà giả ở ba mức.
 - **Follow**, **Share**: giả lập theo dõi và chia sẻ.
 - **Gõ "câu"**, **Gõ "kéo"**: giả lập chat thả cần và kéo cần.
+- **Ép cá thoát**: ép hết giờ cắn của mọi ghế đang cắn, để thử cảnh cá thoát.
 - **Bão sự kiện**: trong 60 giây, 50 người giả liên tục thả tim, chat, tặng quà để thử game chịu tải. Bấm lại (nút đổi thành **Dừng**) để tắt sớm.
 
 Mở `http://localhost:3000/game` trong trình duyệt để xem game phản ứng.

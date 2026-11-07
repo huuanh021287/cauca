@@ -149,6 +149,15 @@ export function createCharacters(config) {
     ctx.globalAlpha = 1;
   }
 
+  // Cá thoát: người câu nhăn mặt (giọt mồ hôi) và dấu hỏi nhấp nhẹ trên đầu, trong phase result không có cá.
+  const QUESTION = ['.yyy.', 'y...y', '...y.', '..y..', '..y..', '.....', '..y..'];
+  const SWEAT = ['..b', '.bb', 'bbb', '.b.'];
+  function drawMissReaction(ctx, pos, now) {
+    const bob = Math.floor(now / 300) % 2 ? -1 : 0;
+    grid(ctx, QUESTION, { y: '#ffe14a' }, pos.x + 12, pos.y - 60 + bob, { scale: 2 });
+    grid(ctx, SWEAT, { b: '#7fd3ff' }, pos.x - 16, pos.y - 34, { scale: 2 });
+  }
+
   // Thanh canh nhịp dưới phao (low-res). Vùng đúng nhịp màu xanh; vạch trắng chạy theo thời gian.
   function drawMeter(ctx, b, m) {
     const W = 24, x0 = Math.round(b.x - W / 2), y = Math.round(b.y + 9);
@@ -213,6 +222,7 @@ export function createCharacters(config) {
       }
       if (seat.legendary) drawSprite(ctx, 'fx.legendary', pos.x + BADGE_DX + 1, pos.y - 24, { glint: Math.floor(now / 400) % 2 === 0 });
       if (seat.bait > 0) drawSprite(ctx, 'fx.bait', pos.x + BADGE_DX, pos.y - 6);
+      if (seat.phase === 'result' && !seat.lastCatch) drawMissReaction(ctx, pos, now);
     }
     // Cá giơ lên vẽ sau cùng để nằm trên cả nhân vật bên cạnh (chỉ trong 3 giây kết quả)
     for (const fish of held) drawFishHeld(ctx, fish, now);
