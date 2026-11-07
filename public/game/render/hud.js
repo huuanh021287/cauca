@@ -28,7 +28,10 @@ const CREAM = '#fff3d6', GOLD = '#ffd23a';
 const TONE = { plain: CREAM, gold: GOLD, pink: '#ffb3c7', gift: '#8fe3ff', dim: '#d6c8b0' };
 const RANK = ['#ffd23a', '#dfe5ea', '#e09a5a'];
 
-export function createHud(config) {
+const SKY_MARGIN = 6; // low-res: pháo nổ cách mép vùng an toàn phía trên
+const SECTION_LOG_MS = 5000;
+
+export function createHud(config, { log = (...a) => console.error(...a) } = {}) {
   const ui = config.ui;
   const safe = safeRect(ui);
   const L = {
@@ -41,7 +44,9 @@ export function createHud(config) {
   const rotateSec = config.leaderboard?.rotateSec ?? 10;
   const feed = createFeed(ui.feedLines);
   const fishByName = new Map(config.fish.map((f) => [f.name, f.sprite ?? `fish.${f.id}`]));
-  const fireworks = createFireworks({ width: ui.width / SCALE });
+  const fireworks = createFireworks({
+    width: ui.width / SCALE, minY: safe.top / SCALE, skyTop: safe.top / SCALE + SKY_MARGIN,
+  });
   const popups = createPopups(config, {
     band: { bottom: L.popupBottom },
     onStart: (p) => { if (p.tier === 'legendary') fireworks.launch('big', lastNow); },
@@ -110,7 +115,7 @@ export function createHud(config) {
     ctx.imageSmoothingEnabled = false;
     drawSprite(ctx, sprite && hasSprite(sprite) ? sprite : 'fish.generic', fx, fy, { scale: 5, maxWidth: 160 });
     const tx = b.x + 200, tw = b.w - 200 - 24;
-    drawOutlinedText(ctx, `${shortName(rec.name, ui.nameMaxChars)} —`, tx, b.y + 128, { size: 28, color: CREAM, outline: INK, width: 6, maxWidth: tw });
+    drawOutlinedText(ctx, shortName(rec.name, ui.nameMaxChars), tx, b.y + 128, { size: 28, color: CREAM, outline: INK, width: 6, maxWidth: tw });
     drawOutlinedText(ctx, String(rec.fishName ?? ''), tx, b.y + 172, { size: 26, weight: 500, color: '#f0d9b0', outline: INK, width: 6, maxWidth: tw });
     drawOutlinedText(ctx, `${formatKg(rec.kg)}kg`, tx, b.y + 216, { font: FONT_PIXEL, size: 56, weight: 400, color: GOLD, outline: INK, width: 9, maxWidth: tw });
   }
@@ -185,16 +190,34 @@ export function createHud(config) {
     if (q) pill(ctx, x, y, qw, h, 'hourglass', q, GOLD, DARK_WOOD);
   }
 
+  // Mỗi phần vẽ riêng: lỗi ở một phần không che các phần khác, ctx luôn được restore,
+  // và mỗi phần chỉ ghi log tối đa một lần mỗi 5 giây.
+  const lastLogAt = new Map();
+  function section(name, ctx, fn) {
+    ctx.save();
+    try {
+      fn();
+    } catch (err) {
+      const t = lastLogAt.get(name);
+      if (t === undefined || lastNow - t >= SECTION_LOG_MS || lastNow < t) {
+        lastLogAt.set(name, lastNow);
+        log(`Lỗi vẽ HUD (${name}):`, err);
+      }
+    } finally {
+      ctx.restore();
+    }
+  }
+
   function draw(ctx, state, now) {
     lastNow = now;
     ctx.imageSmoothingEnabled = false;
     const snap = state.snapshot;
-    drawLeaderboard(ctx, snap, now);
-    drawClock(ctx, now);
-    drawFeed(ctx, now);
-    drawHints(ctx, snap, now);
-    fireworks.draw(ctx, now, SCALE);
-    popups.draw(ctx, now);
+    section('bảng xếp hạng', ctx, () => drawLeaderboard(ctx, snap, now));
+    section('đồng hồ', ctx, () => drawClock(ctx, now));
+    section('dòng tin', ctx, () => drawFeed(ctx, now));
+    section('hướng dẫn', ctx, () => drawHints(ctx, snap, now));
+    section('pháo hoa', ctx, () => fireworks.draw(ctx, now, SCALE));
+    section('popup', ctx, () => popups.draw(ctx, now));
   }
 
   return { onEvents, draw, fireworks, popups, feed };

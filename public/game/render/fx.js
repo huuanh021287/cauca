@@ -13,7 +13,8 @@ const COLORS = PALETTES.flat();
 const ROCKET = 0, SPARK = 1;
 const GRAVITY = 38;   // px low-res / s²
 
-export function createFireworks({ width = 270, skyTop = 50, skyBottom = 170, max = 400 } = {}) {
+// minY: mép dưới vùng an toàn phía trên (low-res); hạt không bao giờ bay lên quá mép này.
+export function createFireworks({ width = 270, skyTop = 50, skyBottom = 170, minY = 0, max = 400 } = {}) {
   const x = new Float32Array(max), y = new Float32Array(max);
   const vx = new Float32Array(max), vy = new Float32Array(max);
   const life = new Float32Array(max), maxLife = new Float32Array(max);
@@ -93,6 +94,7 @@ export function createFireworks({ width = 270, skyTop = 50, skyBottom = 170, max
       const drag = kind[i] === SPARK ? 1 - 1.4 * dt : 1;
       vx[i] *= drag; vy[i] *= drag;
       x[i] += vx[i] * dt; y[i] += vy[i] * dt;
+      if (y[i] < minY) { y[i] = minY; if (vy[i] < 0) vy[i] = 0; }
       i++;
     }
   }
