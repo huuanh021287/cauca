@@ -4,6 +4,7 @@ import { normalizeTikTok, TIKTOK_EVENTS } from '../events/normalize.js';
 
 const RETRY_DELAYS_MS = [5000, 10000, 30000];
 const NOT_LIVE_DELAY_MS = 30000;
+const INVALID_ID_PATTERN = /invalid.?unique.?id|invalid.*(username|unique)/i;
 const NOT_LIVE_PATTERN = /offline|isn'?t online|LIVE has ended/i;
 
 function retryDelay(attempt) {
@@ -71,29 +72,45 @@ export function createListener({
   function attemptConnect(gen) {
     const username = currentUsername;
     status('connecting', `Đang kết nối tới @${username}...`);
-    const c = connect(username);
-    conn = c;
+    let c;
     let lost = false;
     const lose = (err) => {
       if (lost || gen !== generation) return;
       lost = true;
       handleLost(gen, err);
     };
-    for (const name of TIKTOK_EVENTS) {
-      c.on(name, (data) => {
-        if (gen !== generation) return;
-        const ev = normalizeTikTok(name, data, config);
-        if (ev) onEvent(ev);
-      });
+    try {
+      c = connect(username);
+      conn = c;
+      for (const name of TIKTOK_EVENTS) {
+        c.on(name, (data) => {
+          if (gen !== generation) return;
+          const ev = normalizeTikTok(name, data, config);
+          if (ev) onEvent(ev);
+        });
+      }
+      c.on('disconnected', () => lose());
+      c.on('streamEnd', () => lose());
+      c.on('error', () => {}); // lỗi kết nối đã được xử lý qua connect()/disconnected
+    } catch (err) {
+      if (gen !== generation) return;
+      if (INVALID_ID_PATTERN.test(`${err?.name ?? ''} ${err?.message ?? ''}`)) {
+        dropConnection();
+        status('error', 'Tên kênh TikTok không hợp lệ');
+        return;
+      }
+      lose(err);
+      return;
     }
-    c.on('disconnected', () => lose());
-    c.on('streamEnd', () => lose());
-    c.on('error', () => {}); // lỗi kết nối đã được xử lý qua connect()/disconnected
     Promise.resolve()
       .then(() => c.connect())
       .then(
         () => {
-          if (gen !== generation || lost) return;
+          if (gen !== generation) {
+            Promise.resolve().then(() => c.disconnect()).catch(() => {});
+            return;
+          }
+          if (lost) return;
           attempt = 0;
           status('connected', `Đã kết nối tới @${username}`);
         },

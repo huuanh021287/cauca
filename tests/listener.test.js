@@ -15,7 +15,7 @@ class FakeConn extends EventEmitter {
   disconnect() { this.disconnected += 1; return Promise.resolve(); }
 }
 
-function setup(behaviors) {
+function setup(behaviors, factoryError) {
   const conns = [];
   const usernames = [];
   const events = [];
@@ -24,6 +24,7 @@ function setup(behaviors) {
   const cancelled = [];
   const connect = (u) => {
     usernames.push(u);
+    if (factoryError) throw factoryError;
     const b = behaviors[Math.min(conns.length, behaviors.length - 1)];
     const c = new FakeConn(b);
     conns.push(c);
@@ -137,4 +138,33 @@ test('empty username → error status, no connection', () => {
   t.listener.start('  @ ');
   assert.equal(last(t.statuses).tiktok, 'error');
   assert.equal(t.conns.length, 0);
+});
+
+test('factory throwing invalid-id error → error status, no retry', () => {
+  const e = new Error('Invalid unique id');
+  e.name = 'InvalidUniqueIdError';
+  const t = setup([ok], e);
+  t.listener.start('bad name');
+  assert.equal(last(t.statuses).tiktok, 'error');
+  assert.equal(t.timers.length, 0);
+});
+
+test('factory throwing generic error → retrying 5000', () => {
+  const t = setup([ok], new Error('boom'));
+  t.listener.start('abc');
+  assert.equal(last(t.statuses).tiktok, 'retrying');
+  assert.equal(t.timers[0].ms, 5000);
+});
+
+test('stale connect resolving after stop disconnects the orphan', async () => {
+  let resolve;
+  const t = setup([() => new Promise((r) => { resolve = r; })]);
+  t.listener.start('abc');
+  t.listener.stop();
+  await tick();
+  assert.equal(t.conns[0].disconnected, 1);
+  resolve();
+  await tick();
+  assert.equal(t.conns[0].disconnected, 2);
+  assert.equal(last(t.statuses).tiktok, 'offline');
 });
