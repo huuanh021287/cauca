@@ -15,11 +15,16 @@ export function formatClock(date) {
   return `${p(date.getHours())}:${p(date.getMinutes())}`;
 }
 
-// Cắt tên theo số ký tự (đếm theo code point để không cắt đôi emoji / ký tự ghép).
+// Cùng luật với server (server/events/sanitize.js): đếm theo grapheme, quá `max` thì giữ `max` cái đầu + "…".
+// Tên server đã lọc đi qua đây không đổi; canvas còn giới hạn maxWidth khi vẽ.
+const segmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('vi', { granularity: 'grapheme' }) : null;
+const graphemes = (s) => (segmenter ? Array.from(segmenter.segment(s), (g) => g.segment) : Array.from(s));
+
 export function shortName(name, max = 12) {
-  const chars = Array.from(String(name ?? '').replace(/\s+/g, ' ').trim());
-  if (!chars.length) return 'ẩn danh';
-  return chars.length > max ? `${chars.slice(0, max - 1).join('')}…` : chars.join('');
+  const text = String(name ?? '').replace(/\s+/g, ' ').trim();
+  if (!text) return 'ẩn danh';
+  const parts = graphemes(text);
+  return parts.length > max ? `${parts.slice(0, max).join('')}…` : text;
 }
 
 const upper = (s) => String(s ?? '').toLocaleUpperCase('vi');

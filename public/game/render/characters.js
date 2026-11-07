@@ -7,6 +7,7 @@ import { drawSprite, hasSprite } from '../sprites/registry.js';
 import { hairFor } from '../sprites/character.js';
 import { rect, curve, grid, withAlpha, safeColor } from '../sprites/pixel.js';
 import { createAvatarCache } from './avatars.js';
+import { shortName } from '../hudLogic.js';
 
 const K = CHAR_SCALE;
 const ROD_LEN = 12 * K;
@@ -190,11 +191,6 @@ export function createCharacters(config) {
     for (const fish of held) drawFishHeld(ctx, fish, now);
   }
 
-  function shortName(name) {
-    const chars = Array.from(String(name ?? ''));
-    return chars.length > ui.nameMaxChars ? `${chars.slice(0, ui.nameMaxChars - 1).join('')}…` : chars.join('');
-  }
-
   function outlinedText(ctx, text, x, y, size, fill, maxWidth) {
     ctx.font = `700 ${size}px ${HUD_FONT}`;
     ctx.lineWidth = Math.max(4, size / 4);
@@ -220,7 +216,7 @@ export function createCharacters(config) {
     // Tên và huy hiệu giữ trong khung 1080 (ghế sát mép không bị cắt chữ)
     const cx = Math.max(NAME_MAX_W / 2 + 4, Math.min(ui.width - NAME_MAX_W / 2 - 4, ax));
     const nameY = img ? avY - r - 8 : (pos.y - LABEL.nameNoAvatarY) * SCALE;
-    outlinedText(hud, shortName(seat.name), cx, nameY, 22, '#ffffff', NAME_MAX_W);
+    outlinedText(hud, shortName(seat.name, ui.nameMaxChars), cx, nameY, 22, '#ffffff', NAME_MAX_W);
     const lv = `Lv.${seat.level}`;
     hud.font = `700 17px ${HUD_FONT}`;
     const bw = hud.measureText(lv).width + 12, by = nameY - 46;

@@ -18,10 +18,17 @@ test('formatClock is HH:MM zero-padded', () => {
   assert.equal(formatClock(new Date(2026, 10, 7, 21, 30)), '21:30');
 });
 
-test('shortName caps by code points', () => {
-  assert.equal(shortName('Đức Thắng'), 'Đức Thắng');
-  assert.equal(shortName('abcdefghijklmnop', 12), 'abcdefghijk…');
-  assert.equal(Array.from(shortName('😀'.repeat(20), 12)).length, 12);
+test('shortName uses the server rule: graphemes, max + "…", idempotent on sanitized names', async () => {
+  const { sanitizeName } = await import('../server/events/sanitize.js');
+  assert.equal(shortName('Đức  Thắng'), 'Đức Thắng');
+  assert.equal(shortName('abcdefghijklmnop', 12), 'abcdefghijkl…');
+  assert.equal(shortName('😀'.repeat(20), 12), `${'😀'.repeat(12)}…`);
+  const family = '👨‍👩‍👧';
+  assert.equal(shortName(family.repeat(13), 12), `${family.repeat(12)}…`);
+  for (const raw of ['abcdefghijklmnop', 'Nguyễn Thị Minh Khai Hà Nội', '😀'.repeat(20), 'An']) {
+    const s = sanitizeName(raw, 12);
+    assert.equal(shortName(s, 12), s);
+  }
   assert.equal(shortName('   '), 'ẩn danh');
 });
 
