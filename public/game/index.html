@@ -20,6 +20,8 @@
     }
     #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
     #pixel { image-rendering: pixelated; image-rendering: crisp-edges; }
+    /* Lớp chữ HUD SVG (render/textlayer.js): đặt trên canvas HUD, không nhận chuột */
+    #hudtext { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
     /* Lớp nhân vật SVG (render/actors.js): hoạt hình CSS, tọa độ 270×480 như canvas pixel */
     #actors { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
     #actors .breathe { animation: breathe 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
@@ -44,6 +46,7 @@
     <canvas id="pixel" width="270" height="480"></canvas>
     <svg id="actors" viewBox="0 0 270 480" aria-hidden="true"></svg>
     <canvas id="hud" width="1080" height="1920"></canvas>
+    <svg id="hudtext" viewBox="0 0 1080 1920" aria-hidden="true"></svg>
   </div>
   <script type="module" src="/game/main.js"></script>
 </body>

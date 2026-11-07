@@ -12,7 +12,8 @@ import { drawSceneBack, drawDockRow, drawSceneFront } from './render/scene.js';
 import { createCharacters } from './render/characters.js';
 import { createActors } from './render/actors.js';
 import { installHud } from './render/hud.js';
-import { waitForFonts } from './text.js';
+import { waitForFonts, setTextSink } from './text.js';
+import { createTextLayer } from './render/textlayer.js';
 
 // Móc cho lớp HUD (render/hud.js): onEvents(events) khi có DisplayEvent; drawHud(ctx, state, nowServer)
 // mỗi khung hình (vẽ trên #hud sau phần nhân vật).
@@ -67,6 +68,7 @@ async function start() {
   // Nhân vật vẽ bằng SVG trên #actors; canvas chỉ vẽ nền và ghế trống.
   const characters = createCharacters(config, { skipSeated: true });
   const actors = createActors(document.getElementById('actors'), config);
+  const textLayer = createTextLayer(document.getElementById('hudtext'));
   // Quà Huyền thoại (≥100 xu): cả bến reo hò.
   hooks.onEvents.push((events) => {
     if (Array.isArray(events) && events.some((e) => e?.kind === 'gift' && e.effect === 'legendary')) {
@@ -105,9 +107,17 @@ async function start() {
       actors.update(seats, nowServer);
 
       hx.clearRect(0, 0, hud.width, hud.height);
-      if (state.fontsReady) {
-        characters.drawHud(hx, seats, nowServer);
-        runDrawHooks(hooks.drawHud, hx, state, nowServer);
+      // Chữ HUD đi qua lớp SVG #hudtext; khung gỗ, icon và pháo hoa vẫn vẽ trên canvas.
+      textLayer.begin();
+      setTextSink(textLayer.sink);
+      try {
+        if (state.fontsReady) {
+          characters.drawHud(hx, seats, nowServer);
+          runDrawHooks(hooks.drawHud, hx, state, nowServer);
+        }
+      } finally {
+        setTextSink(null);
+        textLayer.end();
       }
     } catch (err) {
       if (t - lastErrorAt > 5000) { lastErrorAt = t; console.error('Lỗi vẽ khung hình:', err); }

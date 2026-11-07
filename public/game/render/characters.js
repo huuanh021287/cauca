@@ -8,6 +8,7 @@ import { hairFor } from '../sprites/character.js';
 import { rect, curve, grid, withAlpha, safeColor } from '../sprites/pixel.js';
 import { createAvatarCache } from './avatars.js';
 import { shortName } from '../hudLogic.js';
+import { drawOutlinedText } from '../text.js';
 
 const K = CHAR_SCALE;
 const ROD_LEN = 12 * K;
@@ -230,14 +231,11 @@ export function createCharacters(config, { skipSeated = false } = {}) {
     for (const fish of held) drawFishHeld(ctx, fish, now);
   }
 
-  function outlinedText(ctx, text, x, y, size, fill, maxWidth) {
-    ctx.font = `700 ${size}px ${HUD_FONT}`;
-    ctx.lineWidth = Math.max(4, size / 4);
-    ctx.strokeStyle = '#000000';
-    ctx.lineJoin = 'round';
-    ctx.strokeText(text, x, y, maxWidth);
-    ctx.fillStyle = fill;
-    ctx.fillText(text, x, y, maxWidth);
+  // Chữ tên/cấp/mồi trên HUD: đi qua drawOutlinedText (canvas hoặc lớp SVG tùy bộ nhận đang bật).
+  function outlinedText(ctx, text, x, y, size, fill, maxWidth, align = 'center') {
+    drawOutlinedText(ctx, text, x, y, {
+      font: HUD_FONT, size, weight: 700, color: fill, outline: '#000000', width: Math.max(4, size / 4), align, maxWidth,
+    });
   }
 
   function drawLabel(hud, seat, i) {
@@ -266,9 +264,7 @@ export function createCharacters(config, { skipSeated = false } = {}) {
     outlinedText(hud, lv, cx, by + 16, 17, '#fff6c8');
     if (seat.bait > 0) {
       // Số mồi canh trái, bắt đầu ngay sau con giun
-      hud.textAlign = 'left';
-      outlinedText(hud, `${seat.bait}`, (pos.x + BADGE_DX + 5) * SCALE, (pos.y + 6) * SCALE, 20, '#ffd0dc', 15 * SCALE);
-      hud.textAlign = 'center';
+      outlinedText(hud, `${seat.bait}`, (pos.x + BADGE_DX + 5) * SCALE, (pos.y + 6) * SCALE, 20, '#ffd0dc', 15 * SCALE, 'left');
     }
   }
 

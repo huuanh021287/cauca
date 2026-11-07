@@ -9,11 +9,18 @@ export function setFont(ctx, { font = FONT_SANS, size = 24, weight = 700 } = {})
   ctx.font = `${weight} ${size}px ${font}`;
 }
 
+// Bộ nhận chữ (SVG): khi được đặt, mọi lệnh drawOutlinedText đi qua đây thay vì canvas.
+// Nhận (ctx, text, x, y, opts) và trả về bề rộng; ctx mang transform và globalAlpha hiện hành.
+let textSink = null;
+export function setTextSink(fn) { textSink = fn; }
+
 // Vẽ chữ có viền. Trả về bề rộng thực tế (đã tính maxWidth).
-export function drawOutlinedText(ctx, text, x, y, {
-  font = FONT_SANS, size = 24, weight = 700, color = '#ffffff', outline = '#000', width = 6,
-  align = 'left', baseline = 'alphabetic', maxWidth, shadow = null,
-} = {}) {
+export function drawOutlinedText(ctx, text, x, y, opts = {}) {
+  if (textSink) return textSink(ctx, text, x, y, opts);
+  const {
+    font = FONT_SANS, size = 24, weight = 700, color = '#ffffff', outline = '#000', width = 6,
+    align = 'left', baseline = 'alphabetic', maxWidth, shadow = null,
+  } = opts;
   const str = String(text ?? '');
   setFont(ctx, { font, size, weight });
   ctx.textAlign = align;

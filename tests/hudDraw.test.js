@@ -63,3 +63,16 @@ test('HUD fireworks sky starts below the top safe zone', () => {
   for (let t = 0; t < 6000; t += 16) hud.fireworks.draw(ctx, t, SCALE);
   assert.ok(Math.min(...ctx.rects.map((r) => r.y)) >= config.ui.safeTop);
 });
+
+test('bộ nhận chữ: khi bật thì drawOutlinedText không chạm ctx và trả về bề rộng', async () => {
+  const { setTextSink, drawOutlinedText } = await import('../public/game/text.js');
+  const calls = [];
+  const ctx = new Proxy({}, { get: (_, k) => (k === 'measureText' ? () => ({ width: 10 }) : () => calls.push(k)) });
+  setTextSink((c, text, x, y, o) => { calls.push(['sink', text, x, y, o.size]); return 42; });
+  try {
+    assert.equal(drawOutlinedText(ctx, 'Xin chào', 1, 2, { size: 30 }), 42);
+  } finally {
+    setTextSink(null);
+  }
+  assert.deepEqual(calls, [['sink', 'Xin chào', 1, 2, 30]]);
+});
