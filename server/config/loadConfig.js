@@ -20,6 +20,9 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isPos = (v) => isNum(v) && v > 0;
 const isNonNeg = (v) => isNum(v) && v >= 0;
+const isPosInt = (v) => Number.isInteger(v) && v > 0;
+// Màn hình game vẽ đúng 2 hàng × 6 ghế.
+const SCREEN_ROWS = 2, SEATS_PER_ROW = 6;
 
 // Bỏ qua các khóa bắt đầu bằng "_" (ghi chú) - chỉ lấy khóa dữ liệu.
 const dataKeys = (o) => Object.keys(o).filter((k) => !k.startsWith('_'));
@@ -51,6 +54,14 @@ export function validateConfig(cfg) {
   };
 
   posFields('dock', ['seats', 'rows', 'idleKickSeconds', 'queueMax', 'queueIdleSeconds']);
+  if (isObj(cfg.dock)) {
+    const { seats, rows } = cfg.dock;
+    const screen = `màn hình game chỉ vẽ ${SCREEN_ROWS} hàng × ${SEATS_PER_ROW} ghế`;
+    if (rows !== SCREEN_ROWS) err('dock.rows', `phải là ${SCREEN_ROWS} (${screen})`);
+    if (!isPosInt(seats) || seats > SCREEN_ROWS * SEATS_PER_ROW) {
+      err('dock.seats', `phải là số nguyên từ 1 tới ${SCREEN_ROWS * SEATS_PER_ROW} (${screen})`);
+    }
+  }
 
   const fi = group('fishing');
   if (fi) {
@@ -164,6 +175,14 @@ export function validateConfig(cfg) {
       else if (g.minCoins <= prevMax) err(p, 'các khoảng xu phải tăng dần và không chồng nhau');
       prevMax = g.maxCoins;
       if (!['fast', 'bait', 'legendary'].includes(g.effect)) err(`${p}.effect`, 'phải là fast, bait hoặc legendary');
+      if (g.effect === 'fast') {
+        for (const f of ['fastSec', 'fastMaxSec']) if (!isPos(g[f])) err(`${p}.${f}`, 'phải là số dương');
+        if (!isPos(g.waitMultiplier) || g.waitMultiplier > 1) err(`${p}.waitMultiplier`, 'phải trong khoảng (0, 1]');
+      }
+      if (g.effect === 'bait' && !isPosInt(g.bait)) err(`${p}.bait`, 'phải là số nguyên ≥ 1');
+      if (g.fireworks !== undefined && g.fireworks !== null && !['small', 'big'].includes(g.fireworks)) {
+        err(`${p}.fireworks`, 'phải là small hoặc big (hoặc bỏ trống)');
+      }
     });
   }
 
@@ -180,6 +199,9 @@ export function validateConfig(cfg) {
 
   if (cfg.server && cfg.server.host !== undefined && (typeof cfg.server.host !== 'string' || !cfg.server.host)) err('server.host', 'phải là chuỗi không rỗng');
   posFields('server', ['port', 'tickMs', 'batchMs', 'snapshotMs', 'autosaveMs', 'maxDisplayEventsPerFlush']);
+  if (isObj(cfg.server) && isPos(cfg.server.port) && (!Number.isInteger(cfg.server.port) || cfg.server.port > 65535)) {
+    err('server.port', 'phải là số nguyên từ 1 tới 65535');
+  }
 
   if (!isObj(cfg.assets)) err('assets', 'thiếu hoặc không phải object');
 

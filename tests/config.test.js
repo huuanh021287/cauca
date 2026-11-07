@@ -52,3 +52,39 @@ test('loadConfig loads default', () => {
   const c = loadConfig();
   assert.equal(c.dock.seats, 12);
 });
+
+test('gift effect params validated per effect', () => {
+  const bad = (mut, needle) => {
+    const c = base();
+    mut(c.gifts);
+    assert.ok(has(validateConfig(c), needle), `${needle}: ${validateConfig(c).join(' | ')}`);
+  };
+  bad((g) => { delete g[0].fastSec; }, 'gifts[0].fastSec');
+  bad((g) => { g[0].fastMaxSec = 0; }, 'gifts[0].fastMaxSec');
+  bad((g) => { g[0].waitMultiplier = 0; }, 'gifts[0].waitMultiplier');
+  bad((g) => { g[0].waitMultiplier = 1.5; }, 'gifts[0].waitMultiplier');
+  bad((g) => { g[1].bait = 2.5; }, 'gifts[1].bait');
+  bad((g) => { g[1].bait = 0; }, 'gifts[1].bait');
+  bad((g) => { g[1].fireworks = 'huge'; }, 'gifts[1].fireworks');
+  const ok = base();
+  ok.gifts[0].waitMultiplier = 1;
+  delete ok.gifts[1].fireworks;
+  assert.deepEqual(validateConfig(ok), []);
+});
+
+test('dock must fit the 2-row × 6-seat game screen', () => {
+  const errsFor = (mut) => { const c = base(); mut(c.dock); return validateConfig(c); };
+  assert.ok(has(errsFor((d) => { d.rows = 3; }), 'dock.rows'));
+  assert.ok(has(errsFor((d) => { d.seats = 13; }), 'dock.seats'));
+  assert.ok(has(errsFor((d) => { d.seats = 13; }), '2 hàng × 6 ghế'));
+  assert.ok(has(errsFor((d) => { d.seats = 6.5; }), 'dock.seats'));
+  assert.deepEqual(errsFor((d) => { d.seats = 8; }), []);
+});
+
+test('server.port must be an integer 1–65535', () => {
+  for (const port of [0, 70000, 3000.5]) {
+    const c = base();
+    c.server.port = port;
+    assert.ok(has(validateConfig(c), 'server.port'), String(port));
+  }
+});
