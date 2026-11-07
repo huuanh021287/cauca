@@ -10,6 +10,7 @@ import { registerCharacterSprites } from './sprites/character.js';
 import { registerFishSprites } from './sprites/fish.js';
 import { drawSceneBack, drawDockRow, drawSceneFront } from './render/scene.js';
 import { createCharacters } from './render/characters.js';
+import { createActors } from './render/actors.js';
 import { installHud } from './render/hud.js';
 import { waitForFonts } from './text.js';
 
@@ -63,11 +64,14 @@ async function start() {
   const hx = hud.getContext('2d');
   px.imageSmoothingEnabled = false;
 
-  const characters = createCharacters(config);
+  // Nhân vật vẽ bằng SVG trên #actors; canvas chỉ vẽ nền và ghế trống.
+  const characters = createCharacters(config, { skipSeated: true });
+  const actors = createActors(document.getElementById('actors'), config);
   // Quà Huyền thoại (≥100 xu): cả bến reo hò.
   hooks.onEvents.push((events) => {
     if (Array.isArray(events) && events.some((e) => e?.kind === 'gift' && e.effect === 'legendary')) {
       characters.cheer(Date.now() + state.offset);
+      actors.cheer(Date.now() + state.offset);
     }
   });
 
@@ -98,6 +102,7 @@ async function start() {
         characters.drawRow(px, seats, row, nowServer);
       }
       drawSceneFront(px, w, h, t, phase);
+      actors.update(seats, nowServer);
 
       hx.clearRect(0, 0, hud.width, hud.height);
       if (state.fontsReady) {

@@ -45,7 +45,81 @@ export function phaseProgress(seat, now) {
   return { p: end > start ? clamp01((now - start) / (end - start)) : 1, elapsed: now - start };
 }
 
-export function createCharacters(config) {
+// Tính dáng cần, vị trí phao và hiệu ứng cho một nhân vật.
+// Dáng cần, vị trí phao và hiệu ứng của một nhân vật theo phase (hàm thuần: dùng cho cả canvas và SVG).
+export function poseFor(seat, pos, now) {
+  const hand = { x: pos.x + 3 * K, y: pos.y - 2 * K };
+  const target = { x: pos.x + 13 * K, y: pos.y + 28 };
+  const tipAt = (deg) => {
+    const r = (deg * Math.PI) / 180;
+    return { x: Math.round(hand.x + ROD_LEN * Math.cos(r)), y: Math.round(hand.y - ROD_LEN * Math.sin(r)) };
+  };
+  const { p, elapsed } = phaseProgress(seat, now);
+  const out = { hand, tip: tipAt(72), bend: 0, bobber: null, sunk: false, splash: -1, exclaim: false, fish: null, bob: 0 };
+  const hang = (tip) => ({ x: tip.x, y: tip.y + 5 });
+  switch (seat.phase) {
+    case 'casting': {
+      const deg = p < 0.4 ? 72 + (125 - 72) * easeOut(p / 0.4) : 125 - (125 - 30) * easeOut((p - 0.4) / 0.6);
+      out.tip = tipAt(deg);
+      if (p < 0.6) out.bobber = hang(out.tip);
+      else {
+        const q = (p - 0.6) / 0.4;
+        out.bobber = {
+          x: out.tip.x + (target.x - out.tip.x) * q,
+          y: out.tip.y + (target.y - out.tip.y) * q - Math.sin(q * Math.PI) * 14,
+        };
+      }
+      break;
+    }
+    case 'waiting':
+      out.tip = tipAt(30);
+      out.bobber = { x: target.x, y: target.y + (Math.sin(now / 520 + pos.x) > 0.3 ? 1 : 0) };
+      if (elapsed < 600) out.splash = elapsed / 600;
+      break;
+    case 'bite':
+      out.tip = tipAt(28 + (Math.floor(now / 120) % 2 ? -4 : 2));
+      out.bend = Math.floor(now / 150) % 2 ? 4 : 1;
+      out.bobber = { x: target.x, y: target.y + 1 };
+      out.sunk = Math.floor(now / 220) % 3 !== 0;
+      out.splash = (now % 700) / 700;
+      out.exclaim = true;
+      // Thanh canh nhịp: vùng xanh là khoảng kéo đúng nhịp (mốc từ server), vạch trắng là thời gian hiện tại.
+      if (Number.isFinite(seat.sweetStart) && Number.isFinite(seat.sweetEnd)) {
+        const span = seat.phaseEndsAt - seat.phaseStartedAt;
+        out.meter = {
+          p: p,
+          from: clamp01((seat.sweetStart - seat.phaseStartedAt) / span),
+          to: clamp01((seat.sweetEnd - seat.phaseStartedAt) / span),
+        };
+      }
+      break;
+    case 'reeling':
+      out.tip = tipAt(48);
+      out.bend = 8 + Math.round(Math.sin(now / 90) * 2);
+      out.bobber = { x: target.x - 3 * p, y: target.y - 18 * easeOut(p) };
+      out.splash = (now % 400) / 400;
+      break;
+    case 'result':
+      if (seat.lastCatch) {
+        out.tip = tipAt(84);
+        out.bobber = hang(out.tip);
+        out.bob = Math.floor(now / 260) % 2 ? -1 : 0;
+        out.fish = { x: pos.x + 17, y: pos.y - 28 + out.bob * K, catch: seat.lastCatch };
+      } else {
+        // Cá thoát: cần chùng xuống, phao nổi lại không có cá.
+        out.tip = tipAt(50);
+        out.bend = 6;
+        out.bobber = hang(out.tip);
+      }
+      break;
+    default: // idle
+      out.tip = tipAt(72 + Math.sin(now / 900 + pos.x) * 3);
+      out.bobber = hang(out.tip);
+  }
+  return out;
+}
+
+export function createCharacters(config, { skipSeated = false } = {}) {
   const ui = config.ui;
   const fishSprite = new Map(config.fish.map((f) => [f.id, f.sprite ?? `fish.${f.id}`]));
   const avatars = createAvatarCache({ size: LABEL.avatarR * 2 * SCALE });
@@ -54,79 +128,6 @@ export function createCharacters(config) {
   function drawCheerArm(ctx, pos, shirt, cp) {
     grid(ctx, cp.wave ? ARM_WAVE : ARM_UP, { K: OUTLINE, S: SKIN, T: safeColor(shirt) },
       pos.x - 8 * K, pos.y - cp.hop - 11 * K, { scale: K });
-  }
-
-  // Tính dáng cần, vị trí phao và hiệu ứng cho một nhân vật.
-  function pose(seat, pos, now) {
-    const hand = { x: pos.x + 3 * K, y: pos.y - 2 * K };
-    const target = { x: pos.x + 13 * K, y: pos.y + 28 };
-    const tipAt = (deg) => {
-      const r = (deg * Math.PI) / 180;
-      return { x: Math.round(hand.x + ROD_LEN * Math.cos(r)), y: Math.round(hand.y - ROD_LEN * Math.sin(r)) };
-    };
-    const { p, elapsed } = phaseProgress(seat, now);
-    const out = { hand, tip: tipAt(72), bend: 0, bobber: null, sunk: false, splash: -1, exclaim: false, fish: null, bob: 0 };
-    const hang = (tip) => ({ x: tip.x, y: tip.y + 5 });
-    switch (seat.phase) {
-      case 'casting': {
-        const deg = p < 0.4 ? 72 + (125 - 72) * easeOut(p / 0.4) : 125 - (125 - 30) * easeOut((p - 0.4) / 0.6);
-        out.tip = tipAt(deg);
-        if (p < 0.6) out.bobber = hang(out.tip);
-        else {
-          const q = (p - 0.6) / 0.4;
-          out.bobber = {
-            x: out.tip.x + (target.x - out.tip.x) * q,
-            y: out.tip.y + (target.y - out.tip.y) * q - Math.sin(q * Math.PI) * 14,
-          };
-        }
-        break;
-      }
-      case 'waiting':
-        out.tip = tipAt(30);
-        out.bobber = { x: target.x, y: target.y + (Math.sin(now / 520 + pos.x) > 0.3 ? 1 : 0) };
-        if (elapsed < 600) out.splash = elapsed / 600;
-        break;
-      case 'bite':
-        out.tip = tipAt(28 + (Math.floor(now / 120) % 2 ? -4 : 2));
-        out.bend = Math.floor(now / 150) % 2 ? 4 : 1;
-        out.bobber = { x: target.x, y: target.y + 1 };
-        out.sunk = Math.floor(now / 220) % 3 !== 0;
-        out.splash = (now % 700) / 700;
-        out.exclaim = true;
-        // Thanh canh nhịp: vùng xanh là khoảng kéo đúng nhịp (mốc từ server), vạch trắng là thời gian hiện tại.
-        if (Number.isFinite(seat.sweetStart) && Number.isFinite(seat.sweetEnd)) {
-          const span = seat.phaseEndsAt - seat.phaseStartedAt;
-          out.meter = {
-            p: p,
-            from: clamp01((seat.sweetStart - seat.phaseStartedAt) / span),
-            to: clamp01((seat.sweetEnd - seat.phaseStartedAt) / span),
-          };
-        }
-        break;
-      case 'reeling':
-        out.tip = tipAt(48);
-        out.bend = 8 + Math.round(Math.sin(now / 90) * 2);
-        out.bobber = { x: target.x - 3 * p, y: target.y - 18 * easeOut(p) };
-        out.splash = (now % 400) / 400;
-        break;
-      case 'result':
-        if (seat.lastCatch) {
-          out.tip = tipAt(84);
-          out.bobber = hang(out.tip);
-          out.bob = Math.floor(now / 260) % 2 ? -1 : 0;
-          out.fish = { x: pos.x + 17, y: pos.y - 28 + out.bob * K, catch: seat.lastCatch };
-        } else {
-          // Cá thoát: cần chùng xuống, phao nổi lại không có cá.
-          out.tip = tipAt(50);
-          out.bend = 6;
-          out.bobber = hang(out.tip);
-        }
-        break;
-      default: // idle
-        out.tip = tipAt(72 + Math.sin(now / 900 + pos.x) * 3);
-        out.bobber = hang(out.tip);
-    }
-    return out;
   }
 
   function drawAura(ctx, pos, color, now) {
@@ -191,8 +192,9 @@ export function createCharacters(config) {
       const seat = seats[i];
       const pos = seatPosition(i, ui);
       if (!seat) { drawStool(ctx, pos); continue; }
+      if (skipSeated) continue; // nhân vật vẽ bằng SVG (render/actors.js)
       const h = hashString(seat.name ?? seat.userId);
-      const pz = pose(seat, pos, now);
+      const pz = poseFor(seat, pos, now);
       const cp = cheerPose(cheerAt, now, i);
       if (cp) {
         // Cả người (và tay cầm cần) nhún lên; phao vẫn nằm dưới nước.
