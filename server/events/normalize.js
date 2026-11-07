@@ -49,8 +49,16 @@ function giftEvent(data, user) {
     data.extendedGiftInfo?.diamond_count,
     data.extendedGiftInfo?.diamondCount,
   ));
-  const repeat = Number(pick(data.repeatCount, 1));
-  const coins = Number.isFinite(diamond) && Number.isFinite(repeat) ? Math.max(0, diamond * repeat) : 0;
+  // Proto v3 để repeatCount = 0 khi không có chuỗi: coi như 1 quà. Cuối chuỗi mà repeatCount = 0
+  // thì thử comboCount/groupCount (nếu > 0).
+  const positive = (v) => (Number(v) > 0 ? Number(v) : undefined);
+  const repeat = Math.max(1, Math.floor(pick(
+    positive(data.repeatCount),
+    repeatEnd ? positive(data.comboCount) : undefined,
+    repeatEnd ? positive(data.groupCount) : undefined,
+    1,
+  )) || 1);
+  const coins = Number.isFinite(diamond) ? Math.max(0, diamond * repeat) : 0;
   const giftName = pick(
     data.giftName,
     data.giftDetails?.giftName,

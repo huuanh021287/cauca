@@ -146,3 +146,17 @@ test('sanitizeAvatar chỉ nhận https', () => {
   assert.equal(sanitizeAvatar(undefined), null);
   assert.equal(sanitizeAvatar('https://x.com/a.png'), 'https://x.com/a.png');
 });
+
+test('gift v3 non-streak with repeatCount 0 (proto default) -> coins = diamondCount', () => {
+  const data = { user: v3User, repeatCount: 0, repeatEnd: 0, gift: { type: 2, diamondCount: 99, name: 'Xe' } };
+  assert.equal(normalizeTikTok('gift', data, config).coins, 99);
+  assert.equal(normalizeTikTok('gift', { user: v3User, gift: { type: 2, diamondCount: 4 } }, config).coins, 4);
+});
+
+test('gift streak end with repeatCount 0 falls back to comboCount / groupCount', () => {
+  const base = { user: v3User, repeatEnd: 1, gift: { type: 1, diamondCount: 1, name: 'Rose' } };
+  assert.equal(normalizeTikTok('gift', { ...base, repeatCount: 0, comboCount: 7 }, config).coins, 7);
+  assert.equal(normalizeTikTok('gift', { ...base, repeatCount: 0, groupCount: 3 }, config).coins, 3);
+  assert.equal(normalizeTikTok('gift', { ...base, repeatCount: 6, comboCount: 2 }, config).coins, 6);
+  assert.equal(normalizeTikTok('gift', { ...base, repeatCount: 0 }, config).coins, 1);
+});
