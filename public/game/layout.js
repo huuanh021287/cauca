@@ -4,7 +4,14 @@
 export const SCALE = 4;
 export const SEATS_PER_ROW = 6;
 const CELL = 42;            // khoảng cách giữa hai ghế (low-res)
-const ROW_Y = [262, 352];   // mặt bến của hàng 1 và hàng 2 (low-res)
+const ROW_Y = [250, 360];   // mặt bến của hàng 1 và hàng 2 (low-res)
+
+// Nhân vật vẽ phóng ×2 (số nguyên để pixel vẫn sắc).
+export const CHAR_SCALE = 2;
+// Phạm vi vẽ quanh điểm ngồi (low-res): từ đỉnh huy hiệu cấp (top) tới dưới phao (bottom),
+// và nửa bề ngang nón lá. render/characters.js đặt avatar/tên/huy hiệu theo các mốc này.
+export const CHAR_BOX = { top: 62, bottom: 32, halfWidth: 16 };
+export const LABEL = { avatarY: 42, avatarR: 6, nameNoAvatarY: 38 };
 
 export function lowRes(ui) {
   return { w: ui.width / SCALE, h: ui.height / SCALE };

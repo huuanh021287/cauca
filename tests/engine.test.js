@@ -434,7 +434,9 @@ test('snapshot shape', async () => {
   assert.equal(s.seats[1], null);
   assert.deepEqual(Object.keys(s.seats[0]).sort(), [
     'aura', 'avatar', 'bait', 'fastUntil', 'lastCatch', 'legendary', 'level', 'name',
-    'phase', 'phaseEndsAt', 'rodColor', 'title', 'userId',
+    'phase', 'phaseEndsAt', 'phaseStartedAt', 'rodColor', 'title', 'userId',
   ]);
+  assert.equal(s.seats[0].phaseStartedAt, T0);
+  assert.ok(s.seats[0].phaseEndsAt > s.seats[0].phaseStartedAt);
   assert.deepEqual(s.leaderboard, { session: [], today: null });
 });

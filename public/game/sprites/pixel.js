@@ -38,15 +38,15 @@ export function curve(ctx, x0, y0, cx, cy, x1, y1, color, steps = 10) {
 }
 
 // Vẽ lưới ký tự: mỗi ký tự là một màu trong `pal`, '.' là trong suốt.
-export function grid(ctx, rows, pal, x, y, { flip = false } = {}) {
-  const w = rows[0].length;
+export function grid(ctx, rows, pal, x, y, { flip = false, scale = 1 } = {}) {
+  const w = rows[0].length, k = scale;
   for (let r = 0; r < rows.length; r++) {
     const row = rows[r];
     for (let c = 0; c < row.length; c++) {
       const color = pal[row[c]];
       if (!color) continue;
       ctx.fillStyle = color;
-      ctx.fillRect(Math.round(x) + (flip ? w - 1 - c : c), Math.round(y) + r, 1, 1);
+      ctx.fillRect(Math.round(x) + (flip ? w - 1 - c : c) * k, Math.round(y) + r * k, k, k);
     }
   }
 }
@@ -65,15 +65,20 @@ export function bakeGrid(rows, pal) {
   return bake(rows[0].length, rows.length, (ctx) => grid(ctx, rows, pal, 0, 0));
 }
 
+const HEX = /^#[0-9a-f]{6}$/i;
+const FALLBACK = '#8b5a2b';
+// Màu không hợp lệ (dữ liệu lạ) thì dùng màu gỗ mặc định thay vì làm hỏng khung hình.
+export const safeColor = (hex) => (typeof hex === 'string' && HEX.test(hex) ? hex : FALLBACK);
+
 // Làm sáng (amt > 0) hoặc tối (amt < 0) một màu #rrggbb.
 export function shade(hex, amt) {
-  const n = parseInt(hex.slice(1), 16);
+  const n = parseInt(safeColor(hex).slice(1), 16);
   const ch = (v) => Math.max(0, Math.min(255, Math.round(amt >= 0 ? v + (255 - v) * amt : v * (1 + amt))));
   const r = ch(n >> 16), g = ch((n >> 8) & 255), b = ch(n & 255);
   return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
 }
 
 export function withAlpha(hex, a) {
-  const n = parseInt(hex.slice(1), 16);
+  const n = parseInt(safeColor(hex).slice(1), 16);
   return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 }

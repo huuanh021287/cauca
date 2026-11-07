@@ -54,7 +54,7 @@
 // SeatView:
 { userId, name, avatar, level, title, rodColor, aura:boolean,
   phase: 'idle'|'casting'|'waiting'|'bite'|'reeling'|'result',
-  phaseEndsAt, bait, legendary:boolean, fastUntil, lastCatch: {fishId,fishName,tier,kg}|null }
+  phaseStartedAt, phaseEndsAt, bait, legendary:boolean, fastUntil, lastCatch: {fishId,fishName,tier,kg}|null }
 ```
 
 **Giao thức WebSocket** (JSON, trường `t` là loại tin):

@@ -18,9 +18,18 @@ export const state = { config: null, snapshot: null, offset: 0 };
 
 const SKY_OVERRIDE = new URLSearchParams(location.search).get('sky'); // ?sky=day|dusk|night để xem thử
 
+// Mỗi móc chạy riêng: lỗi ở một móc không chặn móc khác.
 function runHooks(list, ...args) {
   for (const fn of list) {
     try { fn(...args); } catch (err) { console.error(err); }
+  }
+}
+
+// Móc vẽ: ctx luôn được restore kể cả khi móc ném lỗi.
+function runDrawHooks(list, ctx, ...args) {
+  for (const fn of list) {
+    ctx.save();
+    try { fn(ctx, ...args); } catch (err) { console.error(err); } finally { ctx.restore(); }
   }
 }
 
@@ -60,23 +69,31 @@ async function start() {
     }
   });
 
+  let lastErrorAt = -Infinity;
   function frame() {
-    const t = performance.now();
-    const nowServer = Date.now() + state.offset;
-    const phase = ['day', 'dusk', 'night'].includes(SKY_OVERRIDE) ? SKY_OVERRIDE : skyPhase(new Date());
-    const seats = state.snapshot?.seats ?? [];
-
-    drawSceneBack(px, w, h, t, phase);
-    for (const row of [0, 1]) {
-      drawDockRow(px, w, rowY(row), t, phase);
-      characters.drawRow(px, seats, row, nowServer);
-    }
-    drawSceneFront(px, w, h, t, phase);
-
-    hx.clearRect(0, 0, hud.width, hud.height);
-    characters.drawHud(hx, seats, nowServer);
-    runHooks(hooks.drawHud, hx, state, nowServer);
+    // Hẹn khung sau trước tiên: một lỗi vẽ không được làm đứng hình cả buổi live.
     requestAnimationFrame(frame);
+    const t = performance.now();
+    try {
+      const nowServer = Date.now() + state.offset;
+      const phase = ['day', 'dusk', 'night'].includes(SKY_OVERRIDE) ? SKY_OVERRIDE : skyPhase(new Date());
+      const seats = state.snapshot?.seats ?? [];
+
+      // Trạng thái vẽ sạch mỗi khung (phòng khi khung trước lỗi giữa chừng)
+      for (const c of [px, hx]) { c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; }
+      drawSceneBack(px, w, h, t, phase);
+      for (const row of [0, 1]) {
+        drawDockRow(px, w, rowY(row), t, phase);
+        characters.drawRow(px, seats, row, nowServer);
+      }
+      drawSceneFront(px, w, h, t, phase);
+
+      hx.clearRect(0, 0, hud.width, hud.height);
+      characters.drawHud(hx, seats, nowServer);
+      runDrawHooks(hooks.drawHud, hx, state, nowServer);
+    } catch (err) {
+      if (t - lastErrorAt > 5000) { lastErrorAt = t; console.error('Lỗi vẽ khung hình:', err); }
+    }
   }
   requestAnimationFrame(frame);
 }

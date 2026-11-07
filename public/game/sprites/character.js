@@ -2,7 +2,7 @@
 // char.body neo ở mặt bến (giữa cạnh dưới phần thân; chân thả xuống dưới điểm neo).
 
 import { registerSprite } from './registry.js';
-import { grid, line, curve, dot, rect, shade } from './pixel.js';
+import { grid, line, curve, dot, rect, shade, bake, safeColor } from './pixel.js';
 
 const SKIN = '#f6c89a';
 const OUTLINE = '#3a2418';
@@ -43,17 +43,38 @@ const NON_LA = [
 
 const HAIRS = ['#2b1d16', '#4a2e1c', '#1c1c24', '#6b3b1f', '#3a2a40'];
 
-function drawBody(ctx, x, y, { shirt = '#4caf50', hair = HAIRS[0], hat = false, blink = false, bob = 0 } = {}) {
-  const ox = Math.round(x) - 6, oy = Math.round(y) - 14 + bob;
-  const pal = {
-    K: OUTLINE, H: hair, S: SKIN, E: blink ? SKIN : '#2a1a14', C: '#f19a9a', m: '#c0605a',
-    T: shirt, t: shade(shirt, -0.25), P: '#33415c',
-  };
-  // Chân không nhấp nhô theo thân
-  grid(ctx, BODY.slice(0, 15), pal, ox, oy);
-  grid(ctx, BODY.slice(15), pal, ox, Math.round(y) + 1);
-  if (blink) line(ctx, ox + 3, oy + 5, ox + 4, oy + 5, '#2a1a14'), line(ctx, ox + 7, oy + 5, ox + 8, oy + 5, '#2a1a14');
-  if (hat) grid(ctx, NON_LA, { K: '#6b4a1e', Y: '#e9c873', y: '#c9a24e' }, ox - 2, oy - 3);
+// Thân được vẽ sẵn vào canvas phụ theo (áo, tóc, nón, chớp mắt, nhún) rồi chỉ drawImage mỗi khung hình.
+// Canvas 16×24: cột 2..13 là thân, hàng 3 là đỉnh đầu (chừa chỗ cho nón), hàng 17 chạm mặt bến.
+const BAKE_W = 16, BAKE_H = 24, BAKE_X = 2, BAKE_TOP = 3, SEAT_ROW = BAKE_TOP + 14;
+const bodyCache = new Map();
+
+function bakeBody(shirt, hair, hat, blink, bob) {
+  return bake(BAKE_W, BAKE_H, (ctx) => {
+    const ox = BAKE_X, oy = BAKE_TOP + bob;
+    const pal = {
+      K: OUTLINE, H: hair, S: SKIN, E: blink ? SKIN : '#2a1a14', C: '#f19a9a', m: '#c0605a',
+      T: shirt, t: shade(shirt, -0.25), P: '#33415c',
+    };
+    grid(ctx, BODY.slice(0, 15), pal, ox, oy);
+    grid(ctx, BODY.slice(15), pal, ox, BAKE_TOP + 15); // chân không nhấp nhô theo thân
+    if (blink) {
+      line(ctx, ox + 3, oy + 5, ox + 4, oy + 5, '#2a1a14');
+      line(ctx, ox + 7, oy + 5, ox + 8, oy + 5, '#2a1a14');
+    }
+    if (hat) grid(ctx, NON_LA, { K: '#6b4a1e', Y: '#e9c873', y: '#c9a24e' }, ox - 2, oy - 3);
+  });
+}
+
+function drawBody(ctx, x, y, { shirt = '#4caf50', hair = HAIRS[0], hat = false, blink = false, bob = 0, scale = 1 } = {}) {
+  shirt = safeColor(shirt);
+  const key = `${shirt}|${hair}|${hat}|${blink}|${bob}`;
+  let c = bodyCache.get(key);
+  if (!c) {
+    if (bodyCache.size > 400) bodyCache.clear();
+    c = bakeBody(shirt, hair, hat, blink, bob);
+    bodyCache.set(key, c);
+  }
+  ctx.drawImage(c, Math.round(x - (BAKE_X + 6) * scale), Math.round(y - SEAT_ROW * scale), BAKE_W * scale, BAKE_H * scale);
 }
 
 export function hairFor(hash) {
@@ -61,11 +82,12 @@ export function hairFor(hash) {
 }
 
 // Cần câu: từ tay tới ngọn; bend > 0 làm cần cong xuống (lúc kéo).
-function drawRod(ctx, _x, _y, { hand, tip, bend = 0, color = '#8b5a2b' }) {
+function drawRod(ctx, _x, _y, { hand, tip, bend = 0, color = '#8b5a2b', thick = 1 }) {
+  color = safeColor(color);
   const mx = (hand.x + tip.x) / 2, my = (hand.y + tip.y) / 2;
   const cx = mx - bend * 0.4, cy = my - bend;
   const dark = shade(color, -0.45);
-  curve(ctx, hand.x, hand.y, cx, cy, tip.x, tip.y, color, 12);
+  for (let k = 0; k < thick; k++) curve(ctx, hand.x, hand.y + k, cx, cy + k, tip.x, tip.y + k, color, 12);
   // Cán cầm
   const dx = tip.x - hand.x, dy = tip.y - hand.y, len = Math.hypot(dx, dy) || 1;
   line(ctx, hand.x, hand.y, hand.x + (dx / len) * 3, hand.y + (dy / len) * 3, dark);
@@ -99,8 +121,8 @@ function drawSplash(ctx, x, y, { t = 0 } = {}) {
 }
 
 const EXCLAIM = ['KKKK', 'KyyK', 'KyyK', 'KyyK', 'KyyK', 'KKKK', '.KK.', 'KyyK', 'KKKK'];
-function drawExclaim(ctx, x, y, { on = true } = {}) {
-  grid(ctx, EXCLAIM, { K: '#3a1408', y: on ? '#ffe14a' : '#ff5a3a' }, Math.round(x) - 2, Math.round(y) - 9);
+function drawExclaim(ctx, x, y, { on = true, scale = 1 } = {}) {
+  grid(ctx, EXCLAIM, { K: '#3a1408', y: on ? '#ffe14a' : '#ff5a3a' }, Math.round(x) - 2 * scale, Math.round(y) - 9 * scale, { scale });
 }
 
 // Đầu rồng vàng nhỏ — dấu hiệu lượt câu huyền thoại.

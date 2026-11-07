@@ -224,15 +224,18 @@ function bakedFor(id) {
   return baked.get(id);
 }
 
+// opts.scale: phóng nguyên lần; opts.maxWidth: giảm hệ số (tối thiểu 1) để hình không rộng quá.
 function drawBaked(id) {
-  return (ctx, x, y, { flip = false } = {}) => {
+  return (ctx, x, y, { flip = false, scale = 1, maxWidth = Infinity } = {}) => {
     const c = bakedFor(id);
-    const left = Math.round(x - c.width / 2), top = Math.round(y - c.height / 2);
-    if (!flip) { ctx.drawImage(c, left, top); return; }
+    const s = Math.max(1, Math.min(scale, Math.floor(maxWidth / c.width)));
+    const w = c.width * s, h = c.height * s;
+    const left = Math.round(x - w / 2), top = Math.round(y - h / 2);
+    if (!flip) { ctx.drawImage(c, left, top, w, h); return; }
     ctx.save();
-    ctx.translate(left + c.width, top);
+    ctx.translate(left + w, top);
     ctx.scale(-1, 1);
-    ctx.drawImage(c, 0, 0);
+    ctx.drawImage(c, 0, 0, w, h);
     ctx.restore();
   };
 }

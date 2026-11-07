@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadConfig } from '../server/config/loadConfig.js';
-import { seatPosition, safeRect, skyPhase, colorFromName } from '../public/game/layout.js';
+import { seatPosition, safeRect, skyPhase, colorFromName, CHAR_BOX } from '../public/game/layout.js';
 
 const { ui } = loadConfig();
 const seats = Array.from({ length: 12 }, (_, i) => seatPosition(i, ui));
@@ -15,11 +15,19 @@ test('12 seat positions are distinct and inside the low-res canvas', () => {
   }
 });
 
-test('seats stay between the safe zones', () => {
+test('drawn extents (level badge top to bobber) stay between the safe zones', () => {
   for (const p of seats) {
-    assert.ok(p.y > ui.safeTop / 4, `y=${p.y}`);
-    assert.ok(p.y < 480 - ui.safeBottom / 4, `y=${p.y}`);
+    assert.ok(p.y - CHAR_BOX.top > ui.safeTop / 4, `top of y=${p.y}`);
+    assert.ok(p.y + CHAR_BOX.bottom < 480 - ui.safeBottom / 4, `bottom of y=${p.y}`);
+    assert.ok(p.x - CHAR_BOX.halfWidth >= 0 && p.x + CHAR_BOX.halfWidth < 270, `x=${p.x}`);
   }
+});
+
+test('characters do not overlap: rows are apart and cells are wider than a character', () => {
+  const row1 = seats.slice(0, 6);
+  const row2 = seats.slice(6);
+  assert.ok(row1[0].y + CHAR_BOX.bottom < row2[0].y - CHAR_BOX.top);
+  assert.ok(row1[1].x - row1[0].x > 2 * CHAR_BOX.halfWidth);
 });
 
 test('two rows of six, second row lower and offset by half a cell', () => {

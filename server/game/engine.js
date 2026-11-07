@@ -221,7 +221,7 @@ export function createGame({ config, players, rng }) {
       return {
         userId: seat.user.id, name: seat.user.name, avatar: seat.user.avatar ?? null,
         level, title: t.name, rodColor: t.rodColor, aura: t.aura,
-        phase: seat.phase, phaseEndsAt: seat.phaseEndsAt, bait: seat.bait,
+        phase: seat.phase, phaseStartedAt: seat.phaseStartedAt, phaseEndsAt: seat.phaseEndsAt, bait: seat.bait,
         legendary: seat.legendary, fastUntil: seat.fastUntil, lastCatch: seat.lastCatch,
       };
     });
