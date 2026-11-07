@@ -93,6 +93,15 @@ export function createCharacters(config) {
         out.sunk = Math.floor(now / 220) % 3 !== 0;
         out.splash = (now % 700) / 700;
         out.exclaim = true;
+        // Thanh canh nhịp: vùng xanh là khoảng kéo đúng nhịp (mốc từ server), vạch trắng là thời gian hiện tại.
+        if (Number.isFinite(seat.sweetStart) && Number.isFinite(seat.sweetEnd)) {
+          const span = seat.phaseEndsAt - seat.phaseStartedAt;
+          out.meter = {
+            p: p,
+            from: clamp01((seat.sweetStart - seat.phaseStartedAt) / span),
+            to: clamp01((seat.sweetEnd - seat.phaseStartedAt) / span),
+          };
+        }
         break;
       case 'reeling':
         out.tip = tipAt(48);
@@ -101,10 +110,17 @@ export function createCharacters(config) {
         out.splash = (now % 400) / 400;
         break;
       case 'result':
-        out.tip = tipAt(84);
-        out.bobber = hang(out.tip);
-        out.bob = Math.floor(now / 260) % 2 ? -1 : 0;
-        if (seat.lastCatch) out.fish = { x: pos.x + 17, y: pos.y - 28 + out.bob * K, catch: seat.lastCatch };
+        if (seat.lastCatch) {
+          out.tip = tipAt(84);
+          out.bobber = hang(out.tip);
+          out.bob = Math.floor(now / 260) % 2 ? -1 : 0;
+          out.fish = { x: pos.x + 17, y: pos.y - 28 + out.bob * K, catch: seat.lastCatch };
+        } else {
+          // Cá thoát: cần chùng xuống, phao nổi lại không có cá.
+          out.tip = tipAt(50);
+          out.bend = 6;
+          out.bobber = hang(out.tip);
+        }
         break;
       default: // idle
         out.tip = tipAt(72 + Math.sin(now / 900 + pos.x) * 3);
@@ -131,6 +147,16 @@ export function createCharacters(config) {
     rect(ctx, pos.x - 5, pos.y - 3, 2, 3, '#5a3a20');
     rect(ctx, pos.x + 4, pos.y - 3, 2, 3, '#5a3a20');
     ctx.globalAlpha = 1;
+  }
+
+  // Thanh canh nhịp dưới phao (low-res). Vùng đúng nhịp màu xanh; vạch trắng chạy theo thời gian.
+  function drawMeter(ctx, b, m) {
+    const W = 24, x0 = Math.round(b.x - W / 2), y = Math.round(b.y + 9);
+    rect(ctx, x0 - 1, y - 1, W + 2, 5, '#000000');
+    rect(ctx, x0, y, W, 3, '#2a3a4a');
+    const from = Math.round(m.from * W), to = Math.max(from + 1, Math.round(m.to * W));
+    rect(ctx, x0 + from, y, to - from, 3, '#7cfc7c');
+    rect(ctx, x0 + Math.round(clamp01(m.p) * W), y - 1, 1, 5, '#ffffff');
   }
 
   function drawFishHeld(ctx, fish, now) {
@@ -179,6 +205,7 @@ export function createCharacters(config) {
         drawSprite(ctx, 'fx.bobber', b.x, b.y, { sunk: pz.sunk });
         if (pz.splash >= 0) drawSprite(ctx, 'fx.splash', b.x, b.y, { t: pz.splash });
       }
+      if (pz.meter) drawMeter(ctx, pz.bobber, pz.meter);
       if (pz.fish) held.push(pz.fish);
       if (pz.exclaim) {
         const jump = Math.floor(now / 160) % 2;

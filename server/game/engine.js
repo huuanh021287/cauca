@@ -35,6 +35,7 @@ export function createGame({ config, players, rng }) {
     Object.assign(seat, {
       waitTotal: 0, bait: pendingBait.get(user.id) ?? 0, legendary: pendingLegendary.has(user.id),
       fastUntil: fastMs ? now + fastMs : 0, reelBonus: false, lastCatch: null,
+      waitRoll: 0, sweetStart: null, sweetEnd: null,
     });
     clearPending(user.id);
     setPhase(seat, 'idle', now, sec(f.autoCastDelaySec));
@@ -93,17 +94,30 @@ export function createGame({ config, players, rng }) {
       case 'casting': {
         const [min, max] = f.waitSec;
         const mult = at < seat.fastUntil ? (fastGift?.waitMultiplier ?? 1) : 1;
-        seat.waitTotal = sec(min + rng() * (max - min)) * mult;
+        seat.waitRoll = rng();
+        seat.waitTotal = sec(min + seat.waitRoll * (max - min)) * mult;
         setPhase(seat, 'waiting', at, seat.waitTotal);
         break;
       }
-      case 'waiting':
+      case 'waiting': {
         setPhase(seat, 'bite', at, sec(f.biteWindowSec));
+        // Vùng canh nhịp (đúng nhịp → thưởng kg) nằm trong 20–80% cửa sổ cắn, suy từ lượt quay chờ
+        // nên không tốn thêm số ngẫu nhiên và vẫn khác nhau giữa các mẻ.
+        const window = sec(f.biteWindowSec);
+        const frac = 0.2 + 0.6 * ((seat.waitRoll * 7.31) % 1);
+        seat.sweetStart = at + Math.round(window * frac);
+        seat.sweetEnd = Math.min(at + window, seat.sweetStart + sec(f.perfectWindowSec));
         out.push(ev('bite', seat.user, { seatIndex: index }));
         break;
-      case 'bite':
-        startReeling(seat, at); // hết cửa sổ: vẫn kéo lên, không thưởng
+      }
+      case 'bite': {
+        // Hết cửa sổ mà chưa kéo: cá thoát, không nhận cá, không trừ mồi.
+        seat.lastCatch = null;
+        seat.reelBonus = false;
+        setPhase(seat, 'result', at, sec(f.resultSec));
+        out.push(ev('miss', seat.user, { seatIndex: index }));
         break;
+      }
       case 'reeling':
         land(seat, index, at, out);
         break;
@@ -147,7 +161,8 @@ export function createGame({ config, players, rng }) {
         const { seat, index } = seated;
         if (cmd === 'cast' && seat.phase === 'idle') cast(seat, index, now, out);
         else if (cmd === 'reel' && seat.phase === 'bite') {
-          seat.reelBonus = true;
+          // Kéo trong vùng canh nhịp mới được thưởng; ngoài vùng vẫn kéo được cá nhưng không thưởng.
+          seat.reelBonus = now >= seat.sweetStart && now <= seat.sweetEnd;
           startReeling(seat, now);
         }
         break;
@@ -228,6 +243,7 @@ export function createGame({ config, players, rng }) {
         level, title: t.name, rodColor: t.rodColor, aura: t.aura,
         phase: seat.phase, phaseStartedAt: seat.phaseStartedAt, phaseEndsAt: seat.phaseEndsAt, bait: seat.bait,
         legendary: seat.legendary, fastUntil: seat.fastUntil, lastCatch: seat.lastCatch,
+        sweetStart: seat.sweetStart, sweetEnd: seat.sweetEnd,
       };
     });
     return {

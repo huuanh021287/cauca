@@ -35,6 +35,7 @@ export function feedText(ev, { nameMax = 12 } = {}) {
   switch (ev.kind) {
     case 'seat': return `${at} vừa vào bến`;
     case 'leave': return `${at} đã về nhà`;
+    case 'miss': return `${at} để cá thoát mất!`;
     case 'welcome_back': return `Chào mừng ${ev.title} cấp ${ev.level} ${at} quay lại!`;
     case 'level_up': return `${at} lên cấp ${ev.level} — ${ev.title}!`;
     case 'follow_thanks': return `Cảm ơn ${at} đã follow! +${ev.bait} mồi thơm`;
@@ -54,7 +55,7 @@ export function feedTone(kind) {
     case 'level_up': case 'welcome_back': return 'gold';
     case 'follow_thanks': case 'share_thanks': return 'pink';
     case 'gift': return 'gift';
-    case 'leave': return 'dim';
+    case 'leave': case 'miss': return 'dim';
     default: return 'plain';
   }
 }

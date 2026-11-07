@@ -89,7 +89,7 @@ Mọi con số của game nằm trong file `config/game.config.json`. Mở bằn
 | Nhóm | Ý nghĩa |
 |---|---|
 | `dock` | Bến câu: số ghế (`seats`), số hàng (`rows`), sau bao nhiêu giây không hoạt động thì bị mời khỏi ghế (`idleKickSeconds`), độ dài hàng chờ (`queueMax`) và thời gian chờ tối đa (`queueIdleSeconds`). Màn hình game vẽ đúng 2 hàng × 6 ghế, nên `rows` phải là `2` và `seats` là số nguyên từ 1 tới 12 (ít hơn 12 thì các ghế cuối để trống). |
-| `fishing` | Nhịp câu theo giây: tự thả cần (`autoCastDelaySec`), thả cần (`castSec`), chờ cá cắn (`waitSec`, dạng [ngắn nhất, dài nhất]), thời gian được giật cần (`biteWindowSec`), kéo cần (`reelSec`), hiện kết quả (`resultSec`). Mỗi lượt thả tim rút ngắn thời gian chờ `likeReduceSec` giây nhưng không quá `minWaitRatio` so với thời gian gốc. `reelBonusMultiplier` là hệ số thưởng khi kéo đúng lúc. |
+| `fishing` | Nhịp câu theo giây: tự thả cần (`autoCastDelaySec`), thả cần (`castSec`), chờ cá cắn (`waitSec`, dạng [ngắn nhất, dài nhất]), thời gian được giật cần (`biteWindowSec`); hết giờ mà chưa kéo thì cá thoát. Kéo cần (`reelSec`), hiện kết quả (`resultSec`). Mỗi lượt thả tim rút ngắn thời gian chờ `likeReduceSec` giây nhưng không quá `minWaitRatio` so với thời gian gốc. `reelBonusMultiplier` là hệ số thưởng khi kéo đúng lúc; `perfectWindowSec` là độ rộng vùng canh nhịp (giây) trên thanh hiện dưới phao. |
 | `commands` | Từ khóa chat để thả cần (`cast`) và kéo cần (`reel`). Viết thường, không dấu. Có thể thêm nhiều từ khóa vào danh sách, từ đầu tiên là từ mặc định của nút giả lập. |
 | `tiers` | Tỉ lệ phần trăm ra từng bậc: `trash` (rác), `common`, `rare`, `epic`, `legendary`. |
 | `fish` | Danh sách cá và vật phẩm (xem bên dưới). |
