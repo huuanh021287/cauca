@@ -18,6 +18,7 @@ export function createListener({
   onStatus,
   schedule = setTimeout,
   cancel = clearTimeout,
+  log = console.warn,
 }) {
   let generation = 0; // tăng mỗi lần start/stop để bỏ qua sự kiện muộn của kết nối cũ
   let conn = null;
@@ -91,7 +92,11 @@ export function createListener({
       }
       c.on('disconnected', () => lose());
       c.on('streamEnd', () => lose());
-      c.on('error', () => {}); // lỗi kết nối đã được xử lý qua connect()/disconnected
+      // Lỗi giữa phiên: chỉ ghi log (mất kết nối thật đã được xử lý qua connect()/disconnected).
+      // Vẫn phải có listener để EventEmitter không ném lỗi làm sập server.
+      c.on('error', (err) => {
+        if (gen === generation) log(`lỗi kết nối TikTok: ${err?.message ?? err}`);
+      });
     } catch (err) {
       if (gen !== generation) return;
       if (INVALID_ID_PATTERN.test(`${err?.name ?? ''} ${err?.message ?? ''}`)) {

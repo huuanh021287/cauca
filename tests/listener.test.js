@@ -15,7 +15,7 @@ class FakeConn extends EventEmitter {
   disconnect() { this.disconnected += 1; return Promise.resolve(); }
 }
 
-function setup(behaviors, factoryError) {
+function setup(behaviors, factoryError, log = () => {}) {
   const conns = [];
   const usernames = [];
   const events = [];
@@ -33,7 +33,7 @@ function setup(behaviors, factoryError) {
   const schedule = (fn, ms) => { const t = { fn, ms }; timers.push(t); return t; };
   const cancel = (t) => cancelled.push(t);
   const listener = createListener({
-    config, connect, schedule, cancel,
+    config, connect, schedule, cancel, log,
     onEvent: (e) => events.push(e),
     onStatus: (s) => statuses.push(s),
   });
@@ -167,4 +167,15 @@ test('stale connect resolving after stop disconnects the orphan', async () => {
   await tick();
   assert.equal(t.conns[0].disconnected, 2);
   assert.equal(last(t.statuses).tiktok, 'offline');
+});
+
+test('mid-session connection error is logged, not thrown, and does not drop the connection', async () => {
+  const logs = [];
+  const t = setup([ok], null, (m) => logs.push(m));
+  t.listener.start('streamer');
+  await tick();
+  assert.doesNotThrow(() => t.conns[0].emit('error', new Error('websocket hỏng')));
+  assert.equal(logs.length, 1);
+  assert.match(logs[0], /websocket hỏng/);
+  assert.equal(last(t.statuses).tiktok, 'connected');
 });
