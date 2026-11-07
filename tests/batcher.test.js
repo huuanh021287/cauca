@@ -40,3 +40,15 @@ test('flushNow empties buffer', () => {
   b.flushNow();
   assert.equal(flushed.length, 1);
 });
+
+test('trimEvents caps, prioritizes and preserves order', async () => {
+  const { trimEvents } = await import('../server/app.js');
+  const evs = [
+    { kind: 'cast' }, { kind: 'catch', tier: 'common' }, { kind: 'gift' }, { kind: 'bite' },
+    { kind: 'catch', tier: 'epic' }, { kind: 'level_up' }, { kind: 'cast' },
+  ];
+  assert.equal(trimEvents(evs, 10), evs);
+  const out = trimEvents(evs, 3);
+  assert.deepEqual(out.map((e) => e.kind), ['gift', 'catch', 'level_up']);
+  assert.equal(out[1].tier, 'epic');
+});

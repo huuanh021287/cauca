@@ -127,7 +127,17 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
     }
     serveStatic(req, res);
   });
-  const wss = new WebSocketServer({ server, path: '/ws' });
+  const wss = new WebSocketServer({
+    server, path: '/ws', maxPayload: 64 * 1024,
+    verifyClient: ({ origin }) => {
+      if (!origin) return true; // OBS / LIVE Studio / client Node không gửi Origin
+      const p = server.address()?.port;
+      return origin === `http://localhost:${p}` || origin === `http://127.0.0.1:${p}`;
+    },
+  });
+  const guard = (name, fn) => () => {
+    try { fn(); } catch (err) { console.error(`lỗi ${name}: ${err.stack ?? err}`); }
+  };
 
   const send = (ws, msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
   const broadcast = (msg) => {
@@ -161,8 +171,10 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
     onFlush: (events) => {
       const now = Date.now();
       const out = [];
-      for (const ev of events) out.push(...game.handle(ev, now));
-      broadcastEvents(out);
+      for (const ev of events) {
+        try { out.push(...game.handle(ev, now)); } catch (err) { console.error(`lỗi xử lý sự kiện: ${err.stack ?? err}`); }
+      }
+      try { broadcastEvents(out); } catch (err) { console.error(`lỗi gửi sự kiện: ${err.stack ?? err}`); }
     },
   });
   const ingest = (ev) => { noteEvent(); batcher.push(ev); };
@@ -180,13 +192,19 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
       case 'connect': listener.start(msg.username); break;
       case 'disconnect': listener.stop(); break;
       case 'sim':
-        for (const ev of sim.make(msg.kind, { coins: msg.coins }, seatedUsers())) ingest(ev);
+      {
+        const c = Number(msg.coins);
+        const coins = Number.isFinite(c) ? Math.max(1, Math.floor(c)) : 1;
+        for (const ev of sim.make(msg.kind, { coins }, seatedUsers())) ingest(ev);
+      }
         break;
       case 'storm':
-        if (stormStop) { stormStop(); stormStop = null; } else {
+        if (stormStop) stormStop();
+        else {
           const stop = sim.storm(STORM, ingest, setTimeout);
-          stormStop = () => { stop(); };
-          setTimeout(() => { if (stormStop) { stormStop = null; sendStatus(); } }, STORM.durationSec * 1000).unref();
+          const done = setTimeout(() => { stormStop = null; sendStatus(); }, STORM.durationSec * 1000);
+          done.unref();
+          stormStop = () => { stop(); clearTimeout(done); stormStop = null; };
         }
         sendStatus();
         break;
@@ -198,18 +216,19 @@ export async function startServer(config, { port, dataFile = DEFAULT_DATA_FILE, 
   wss.on('connection', (ws) => {
     send(ws, { t: 'snapshot', data: game.snapshot(Date.now()) });
     send(ws, { t: 'status', data: statusData() });
+    ws.on('error', (err) => { console.error(`lỗi WebSocket: ${err.message}`); ws.terminate(); });
     ws.on('message', (raw) => {
       try { onMessage(JSON.parse(raw.toString())); } catch (err) { log(`tin nhắn lỗi: ${err.message}`); }
     });
   });
 
-  const tickTimer = setInterval(() => broadcastEvents(game.tick(Date.now())), sv.tickMs);
-  const snapTimer = setInterval(() => broadcast({ t: 'snapshot', data: game.snapshot(Date.now()) }), sv.snapshotMs);
-  const statusTimer = setInterval(sendStatus, 1000);
+  const tickTimer = setInterval(guard('tick', () => broadcastEvents(game.tick(Date.now()))), sv.tickMs);
+  const snapTimer = setInterval(guard('snapshot', () => broadcast({ t: 'snapshot', data: game.snapshot(Date.now()) })), sv.snapshotMs);
+  const statusTimer = setInterval(guard('status', sendStatus), 1000);
 
   await new Promise((resolve, reject) => {
     server.once('error', reject);
-    server.listen(port ?? sv.port, resolve);
+    server.listen(port ?? sv.port, sv.host ?? '127.0.0.1', resolve);
   });
 
   return {

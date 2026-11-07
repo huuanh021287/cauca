@@ -71,8 +71,8 @@
     "maxPopups": 2, "popupSec": 3, "feedLines": 3
   },
   "server": {
-    "_ghiChu": "Máy chủ: cổng, nhịp tick, chu kỳ gửi gói sự kiện, snapshot, tự lưu (ms) và giới hạn sự kiện hiển thị mỗi lần gửi.",
-    "port": 3000, "tickMs": 250, "batchMs": 200, "snapshotMs": 250, "autosaveMs": 5000,
+    "_ghiChu": "Máy chủ: địa chỉ lắng nghe (host, mặc định chỉ máy này), cổng, nhịp tick, chu kỳ gửi gói sự kiện, snapshot, tự lưu (ms) và giới hạn sự kiện hiển thị mỗi lần gửi.",
+    "host": "127.0.0.1", "port": 3000, "tickMs": 250, "batchMs": 200, "snapshotMs": 250, "autosaveMs": 5000,
     "maxDisplayEventsPerFlush": 30
   },
   "assets": {

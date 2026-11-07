@@ -178,6 +178,7 @@ export function validateConfig(cfg) {
     for (const f of ['safeTop', 'safeBottom']) if (!isNonNeg(ui[f])) err(`ui.${f}`, 'phải là số không âm');
   }
 
+  if (cfg.server && cfg.server.host !== undefined && (typeof cfg.server.host !== 'string' || !cfg.server.host)) err('server.host', 'phải là chuỗi không rỗng');
   posFields('server', ['port', 'tickMs', 'batchMs', 'snapshotMs', 'autosaveMs', 'maxDisplayEventsPerFlush']);
 
   if (!isObj(cfg.assets)) err('assets', 'thiếu hoặc không phải object');
