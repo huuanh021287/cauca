@@ -4,5 +4,7 @@
 import { TikTokLiveConnection } from 'tiktok-live-connector';
 
 export function createTikTokConnection(username) {
-  return new TikTokLiveConnection(username);
+  // tiktok-live-connector 2.5.0 đọc options.processInitialData ngay trong constructor,
+  // nên bắt buộc truyền đối tượng (kể cả rỗng) — nếu không sẽ ném lỗi "reading 'processInitialData'".
+  return new TikTokLiveConnection(username, {});
 }
