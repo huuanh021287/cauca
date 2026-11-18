@@ -7,6 +7,14 @@ const NOT_LIVE_DELAY_MS = 30000;
 const INVALID_ID_PATTERN = /invalid.?unique.?id|invalid.*(username|unique)/i;
 const NOT_LIVE_PATTERN = /offline|isn'?t online|LIVE has ended/i;
 
+// Lý do lỗi dễ hiểu cho admin (thay vì chỉ "Mất kết nối").
+export function describeError(err) {
+  if (!err) return '';
+  const msg = String(err.message ?? err);
+  if (/Room ID/i.test(msg)) return 'không lấy được phòng LIVE: kiểm tra kênh đang bật LIVE, mạng, rồi thử lại';
+  return msg.length > 90 ? `${msg.slice(0, 90)}…` : msg;
+}
+
 function retryDelay(attempt) {
   return RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)];
 }
@@ -46,14 +54,14 @@ export function createListener({
       .catch(() => {});
   }
 
-  function scheduleRetry(gen, delay, notLive) {
+  function scheduleRetry(gen, delay, notLive, reason = '') {
     clearTimer();
     const seconds = Math.round(delay / 1000);
     status(
       notLive ? 'not_live' : 'retrying',
       notLive
         ? `Kênh chưa live, thử lại sau ${seconds} giây`
-        : `Mất kết nối, thử lại sau ${seconds} giây`,
+        : `Mất kết nối${reason ? ` (${reason})` : ''}, thử lại sau ${seconds} giây`,
     );
     timer = schedule(() => {
       timer = null;
@@ -67,7 +75,7 @@ export function createListener({
     const notLive = err ? NOT_LIVE_PATTERN.test(String(err.message ?? err)) : false;
     const delay = notLive ? NOT_LIVE_DELAY_MS : retryDelay(attempt);
     attempt += 1;
-    scheduleRetry(gen, delay, notLive);
+    scheduleRetry(gen, delay, notLive, describeError(err));
   }
 
   function attemptConnect(gen) {
@@ -119,7 +127,11 @@ export function createListener({
           attempt = 0;
           status('connected', `Đã kết nối tới @${username}`);
         },
-        (err) => lose(err ?? new Error('connect failed')),
+        (err) => {
+          // Ghi nguyên nhân ra log server để xem được khi trang admin chỉ báo chung chung.
+          if (gen === generation) log(`lỗi kết nối TikTok: ${err?.message ?? err ?? 'không rõ'}`);
+          lose(err ?? new Error('connect failed'));
+        },
       );
   }
 

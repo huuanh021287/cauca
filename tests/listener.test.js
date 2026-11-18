@@ -179,3 +179,14 @@ test('mid-session connection error is logged, not thrown, and does not drop the 
   assert.match(logs[0], /websocket hỏng/);
   assert.equal(last(t.statuses).tiktok, 'connected');
 });
+
+test('lỗi lấy phòng LIVE: trạng thái nêu nguyên nhân và ghi log', async () => {
+  const logs = [];
+  const t = setup([fail('Failed to retrieve Room ID from all sources.')], null, (m) => logs.push(m));
+  t.listener.start('abc');
+  await tick();
+  const s = last(t.statuses);
+  assert.equal(s.tiktok, 'retrying');
+  assert.match(s.message, /không lấy được phòng LIVE/);
+  assert.ok(logs.some((m) => m.includes('Failed to retrieve Room ID')));
+});
